@@ -1,8 +1,10 @@
 import numpy as np
 import pickle
+import math
+import sys
 
 
-def xavier_init(size, gain = 1.0):
+def xavier_init(size, gain=1.0):
     """
     Xavier initialization of network weights.
 
@@ -120,7 +122,11 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+
+        sigmoid = lambda t: 1 / (1 + pow(math.e, -t))
+        transformed = sigmoid(x)
+        self._cache_current = x
+        return transformed
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -143,7 +149,11 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+
+        # grad_z is actually grad_a, bad notation
+        x = self._cache_current
+        deriv = lambda t: (1 / (1 + pow(math.e, -t))) * (1 - (1 / (1 + pow(math.e, -t))))
+        return np.multiply(grad_z, deriv)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -177,8 +187,9 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        relu = lambda t: max(0, t)
+        self._cache_current = relu(x)
+        return self._cache_current
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -200,7 +211,7 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        return np.multiply(grad_z, (lambda x: int(x > 0))(self._cache_current))
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -226,13 +237,12 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._W = None
-        self._b = None
+        self._W = xavier_init((n_in, n_out))  # Initially random
+        self._b = np.zeros(shape=(n_in, n_out))  # Initially zero
 
         self._cache_current = None
         self._grad_W_current = None
         self._grad_b_current = None
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -253,8 +263,9 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        self._cache_current = x
+        z = np.add(np.matmul(x, self._W), self._b)  # y = xW + b
+        return z
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -276,8 +287,9 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        self._grad_W_current = np.matmul(np.transpose(self._cache_current), grad_z)  # dloss/dZ * dZ/dW
+        self._grad_b_current = np.matmul(np.ones(grad_z.shape[0]), grad_z)  # dloss/dZ * dZ/db
+        return np.matmul(grad_z, np.transpose(self._W))  # dloss/dx = dloss/dz * W^T
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -293,8 +305,8 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        self._W -= learning_rate * self._grad_W_current
+        self._b -= learning_rate * self._grad_b_current
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -345,7 +357,7 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        return np.zeros((1, self.neurons[-1])) # Replace with your own code
+        return np.zeros((1, self.neurons[-1]))  # Replace with your own code
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -416,13 +428,13 @@ class Trainer(object):
     """
 
     def __init__(
-        self,
-        network,
-        batch_size,
-        nb_epoch,
-        learning_rate,
-        loss_fun,
-        shuffle_flag,
+            self,
+            network,
+            batch_size,
+            nb_epoch,
+            learning_rate,
+            loss_fun,
+            shuffle_flag,
     ):
         """
         Constructor of the Trainer.
