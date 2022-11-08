@@ -122,12 +122,10 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         sigmoid = lambda t: 1 / (1 + pow(math.e, -t))
         transformed = sigmoid(x)
         self._cache_current = x
         return transformed
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -149,12 +147,11 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         # grad_z is actually grad_a, bad notation
         x = self._cache_current
-        deriv = lambda t: (1 / (1 + pow(math.e, -t))) * (1 - (1 / (1 + pow(math.e, -t))))
+        sigmoid = lambda t: 1 / (1 + pow(math.e, -t))
+        deriv = lambda t: sigmoid(t) * (1 - sigmoid(t))
         return np.multiply(grad_z, deriv(x))
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -210,8 +207,8 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        return np.multiply(grad_z, (lambda x: int(x > 0))(self._cache_current))
-
+        # return np.multiply(grad_z, (lambda t: int(t > 0))(self._cache_current))
+        return np.multiply(grad_z, np.where(self._cache_current > 0, 1, 0))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -237,7 +234,7 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._W = xavier_init((n_in, n_out))  # Initially random
-        self._b = np.zeros(shape=(n_in, n_out))  # Initially zero
+        self._b = np.zeros(shape=(1, n_out))  # Initially zero
 
         self._cache_current = None
         self._grad_W_current = None
@@ -263,6 +260,7 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._cache_current = x
+        self._b = np.tile(self._b, (x.shape[0], 1))
         z = np.add(np.matmul(x, self._W), self._b)  # y = xW + b
         return z
         #######################################################################
@@ -288,6 +286,9 @@ class LinearLayer(Layer):
         #######################################################################
         self._grad_W_current = np.matmul(np.transpose(self._cache_current), grad_z)  # dloss/dZ * dZ/dW
         self._grad_b_current = np.matmul(np.ones(grad_z.shape[0]), grad_z)  # dloss/dZ * dZ/db
+
+        print(grad_z.shape)
+        print(self._W.shape)
         return np.matmul(grad_z, np.transpose(self._W))  # dloss/dx = dloss/dz * W^T
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -324,8 +325,8 @@ class MultiLayerNetwork(object):
         Arguments:
             - input_dim {int} -- Number of features in the input (excluding 
                 the batch dimension).
-            - neurons {list} -- Number of neurons in each linear layer 
-                represented as a list. The length of the list determines the 
+             - neurons {list} -- Number of neurons in each linear layer
+                represented as a list. The length of the list determines the
                 number of linear layers.
             - activations {list} -- List of the activation functions to apply 
                 to the output of each linear layer.
@@ -337,7 +338,18 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._layers = None
+        self._layers = []
+
+        # Populate layers list
+        for i, activation in enumerate(activations):
+            if i == 0:  # Edge case for input
+                self._layers.append(LinearLayer(input_dim, neurons[i]))
+            else:
+                self._layers.append(LinearLayer(neurons[i - 1], neurons[i]))
+            if activation == "relu":
+                self._layers.append(ReluLayer())
+            elif activation == "sigmoid":
+                self._layers.append(SigmoidLayer())
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -356,8 +368,10 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        return np.zeros((1, self.neurons[-1]))  # Replace with your own code
-
+        next_x = x
+        for layer in self._layers:
+            next_x = layer.forward(next_x)
+        return next_x
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -380,8 +394,10 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        next_grad = grad_z
+        for i in range (len(self._layers)-1, -1, -1):
+            next_grad = self._layers[i].backward(next_grad)
+        return next_grad
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -397,8 +413,8 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        update_layer = lambda l: l.update_params(learning_rate)
+        self._layers = map(update_layer, self._layers)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -647,4 +663,17 @@ def example_main():
 
 
 if __name__ == "__main__":
-    example_main()
+    inputs = np.random.randint(0, 10, (5, 4))
+    network = MultiLayerNetwork(
+        input_dim=4, neurons=[16, 2], activations=["relu", "sigmoid"]
+    )
+    # `inputs` shape: (batch_size, 4)
+    # `outputs` shape: (batch_size, 2)
+    outputs = network(inputs)
+    # `grad_loss_wrt_outputs` shape: (batch_size, 2)
+    # `grad_loss_wrt_inputs` shape: (batch_size, 4)
+    grad_loss_wrt_outputs = np.random.randint(0, 10, (5, 2))
+
+    grad_loss_wrt_inputs = network.backward(grad_loss_wrt_outputs)
+    network.update_params(0.25)
+    # example_main()
