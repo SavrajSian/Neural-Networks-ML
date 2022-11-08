@@ -153,7 +153,7 @@ class SigmoidLayer(Layer):
         # grad_z is actually grad_a, bad notation
         x = self._cache_current
         deriv = lambda t: (1 / (1 + pow(math.e, -t))) * (1 - (1 / (1 + pow(math.e, -t))))
-        return np.multiply(grad_z, deriv)
+        return np.multiply(grad_z, deriv(x))
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -187,8 +187,7 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        relu = lambda t: max(0, t)
-        self._cache_current = relu(x)
+        self._cache_current = np.where(x < 0, 0, x)
         return self._cache_current
         #######################################################################
         #                       ** END OF YOUR CODE **
