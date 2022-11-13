@@ -544,7 +544,7 @@ class Trainer(object):
                 batch = shuffled_input[i:i + self.batch_size]
                 pred = self.network.forward(batch)
                 loss = self._loss_layer.forward(pred, shuffled_target[i:i+self.batch_size])
-                self.network.backward(pred)
+                self.network.backward(pred) # TODO: double check
                 self.network.update_params(self.learning_rate)
 
         #######################################################################
