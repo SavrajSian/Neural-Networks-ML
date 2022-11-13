@@ -3,9 +3,10 @@ import pickle
 import numpy as np
 import pandas as pd
 
+
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 1000):
+    def __init__(self, x, nb_epoch=1000):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -24,17 +25,17 @@ class Regressor():
         #######################################################################
 
         # Replace this code with your own
-        X, _ = self._preprocessor(x, training = True)
+        X, _ = self._preprocessor(x, training=True)
         self.input_size = X.shape[1]
         self.output_size = 1
-        self.nb_epoch = nb_epoch 
+        self.nb_epoch = nb_epoch
         return
 
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
 
-    def _preprocessor(self, x, y = None, training = False):
+    def _preprocessor(self, x, y=None, training=False):
         """ 
         Preprocess input of the network.
           
@@ -65,7 +66,6 @@ class Regressor():
         #                       ** END OF YOUR CODE **
         #######################################################################
 
-        
     def fit(self, x, y):
         """
         Regressor training function
@@ -84,14 +84,13 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
         return self
 
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
 
-            
     def predict(self, x):
         """
         Output the value corresponding to an input x.
@@ -109,7 +108,7 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training = False) # Do not forget
+        X, _ = self._preprocessor(x, training=False)  # Do not forget
         pass
 
         #######################################################################
@@ -134,15 +133,15 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        return 0 # Replace this code with your own
+        X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
+        return 0  # Replace this code with your own
 
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
 
 
-def save_regressor(trained_model): 
+def save_regressor(trained_model):
     """ 
     Utility function to save the trained regressor model in part2_model.pickle.
     """
@@ -152,7 +151,7 @@ def save_regressor(trained_model):
     print("\nSaved model in part2_model.pickle\n")
 
 
-def load_regressor(): 
+def load_regressor():
     """ 
     Utility function to load the trained regressor model in part2_model.pickle.
     """
@@ -163,8 +162,7 @@ def load_regressor():
     return trained_model
 
 
-
-def RegressorHyperParameterSearch(): 
+def RegressorHyperParameterSearch():
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -189,15 +187,13 @@ def RegressorHyperParameterSearch():
     #######################################################################
 
 
-
 def example_main():
-
     output_label = "median_house_value"
 
     # Use pandas to read CSV data as it contains various object types
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
-    data = pd.read_csv("housing.csv") 
+    data = pd.read_csv("housing.csv")
 
     # Splitting input and output
     x_train = data.loc[:, data.columns != output_label]
@@ -207,7 +203,7 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 10)
+    regressor = Regressor(x_train, nb_epoch=10)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
@@ -218,4 +214,3 @@ def example_main():
 
 if __name__ == "__main__":
     example_main()
-

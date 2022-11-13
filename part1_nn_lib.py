@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import default_rng
 import pickle
 import math
 import sys
@@ -122,10 +123,9 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        sigmoid = lambda t: 1 / (1 + pow(math.e, -t))
-        transformed = sigmoid(x)
         self._cache_current = x
-        return transformed
+        sigmoid_x = 1 / (1 + pow(math.e, -x))
+        return sigmoid_x
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -149,9 +149,8 @@ class SigmoidLayer(Layer):
         #######################################################################
         # grad_z is actually grad_a, bad notation
         x = self._cache_current
-        sigmoid = lambda t: 1 / (1 + pow(math.e, -t))
-        deriv = lambda t: sigmoid(t) * (1 - sigmoid(t))
-        return np.multiply(grad_z, deriv(x))
+        sigmoid_x = 1 / (1 + pow(math.e, -x))
+        return np.multiply(grad_z, sigmoid_x * (1 - sigmoid_x))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -218,6 +217,7 @@ class LinearLayer(Layer):
     """
     LinearLayer: Performs affine transformation of input.
     """
+    first_pass = True
 
     def __init__(self, n_in, n_out):
         """
@@ -260,7 +260,9 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._cache_current = x
-        self._b = np.tile(self._b, (x.shape[0], 1))
+        if self.first_pass:
+            self._b = np.tile(self._b, (x.shape[0], 1))
+            self.first_pass = False
         z = np.add(np.matmul(x, self._W), self._b)  # y = xW + b
         return z
         #######################################################################
@@ -287,8 +289,6 @@ class LinearLayer(Layer):
         self._grad_W_current = np.matmul(np.transpose(self._cache_current), grad_z)  # dloss/dZ * dZ/dW
         self._grad_b_current = np.matmul(np.ones(grad_z.shape[0]), grad_z)  # dloss/dZ * dZ/db
 
-        print(grad_z.shape)
-        print(self._W.shape)
         return np.matmul(grad_z, np.transpose(self._W))  # dloss/dx = dloss/dz * W^T
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -395,7 +395,7 @@ class MultiLayerNetwork(object):
         #                       ** START OF YOUR CODE **
         #######################################################################
         next_grad = grad_z
-        for i in range (len(self._layers)-1, -1, -1):
+        for i in range(len(self._layers) - 1, -1, -1):
             next_grad = self._layers[i].backward(next_grad)
         return next_grad
         #######################################################################
@@ -413,8 +413,13 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        update_layer = lambda l: l.update_params(learning_rate)
-        self._layers = map(update_layer, self._layers)
+        def update_layer(layer):
+            if type(layer) == LinearLayer:
+                layer.update_params(learning_rate)
+            return layer
+
+        self._layers = list(map(update_layer, self._layers))
+        return self
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -474,7 +479,7 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._loss_layer = None
+        self._loss_layer = MSELossLayer() if loss_fun == "mse" else CrossEntropyLossLayer()
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -497,8 +502,10 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        shuffled_indices = default_rng().permutation(input_dataset.shape[0])
+        input_dataset = input_dataset[shuffled_indices]
+        target_dataset = target_dataset[shuffled_indices]
+        return input_dataset, target_dataset
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -526,7 +533,19 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        print(f"Training {self.nb_epoch} times. Batch size: {self.batch_size}.")
+        for j in range(self.nb_epoch):
+            shuffled_input, shuffled_target = input_dataset, target_dataset
+            if self.shuffle_flag:
+                shuffled_input, shuffled_target = Trainer.shuffle(input_dataset, target_dataset)
+
+            # Split into batches of size batch_size and perform pass
+            for i in range(0, input_dataset.shape[0], self.batch_size):
+                batch = shuffled_input[i:i + self.batch_size]
+                pred = self.network.forward(batch)
+                loss = self._loss_layer.forward(pred, shuffled_target[i:i+self.batch_size])
+                self.network.backward(pred)
+                self.network.update_params(self.learning_rate)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -549,8 +568,10 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        out = self.network.forward(input_dataset)
+        print(out.shape)
+        print(target_dataset.shape)
+        return self._loss_layer.forward(out, target_dataset)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -574,8 +595,17 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        self.a = 0
+        self.b = 1
 
+        self._min = np.amin(data)
+        self._max = np.amax(data)
+
+        factor = (self.b - self.a) / (self._max - self._min)
+        inverse_factor = (self._max - self._min) / (self.b - self.a)
+
+        self.normalize = lambda x: self.a + (x - self._min) * factor
+        self.retrieve = lambda x: self._min + (x - self.a) * inverse_factor
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -593,8 +623,7 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        return self.normalize(data)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -612,8 +641,7 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        return self.retrieve(data)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -663,17 +691,4 @@ def example_main():
 
 
 if __name__ == "__main__":
-    inputs = np.random.randint(0, 10, (5, 4))
-    network = MultiLayerNetwork(
-        input_dim=4, neurons=[16, 2], activations=["relu", "sigmoid"]
-    )
-    # `inputs` shape: (batch_size, 4)
-    # `outputs` shape: (batch_size, 2)
-    outputs = network(inputs)
-    # `grad_loss_wrt_outputs` shape: (batch_size, 2)
-    # `grad_loss_wrt_inputs` shape: (batch_size, 4)
-    grad_loss_wrt_outputs = np.random.randint(0, 10, (5, 2))
-
-    grad_loss_wrt_inputs = network.backward(grad_loss_wrt_outputs)
-    network.update_params(0.25)
-    # example_main()
+    example_main()
