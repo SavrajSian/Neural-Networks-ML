@@ -502,10 +502,13 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        shuffled_indices = default_rng().permutation(input_dataset.shape[0])
-        input_dataset = input_dataset[shuffled_indices]
-        target_dataset = target_dataset[shuffled_indices]
-        return input_dataset, target_dataset
+        try:
+            shuffled_indices = default_rng().permutation(input_dataset.shape[0])
+            input_dataset = input_dataset[shuffled_indices]
+            target_dataset = target_dataset[shuffled_indices]
+            return input_dataset, target_dataset
+        except Exception as e:
+            print(e)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -533,20 +536,22 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        print(f"Training {self.nb_epoch} times. Batch size: {self.batch_size}.")
-        for j in range(self.nb_epoch):
-            shuffled_input, shuffled_target = input_dataset, target_dataset
-            if self.shuffle_flag:
-                shuffled_input, shuffled_target = Trainer.shuffle(input_dataset, target_dataset)
+        try:
+            print(f"Training {self.nb_epoch} times. Batch size: {self.batch_size}.")
+            for j in range(self.nb_epoch):
+                shuffled_input, shuffled_target = input_dataset, target_dataset
+                if self.shuffle_flag:
+                    shuffled_input, shuffled_target = Trainer.shuffle(input_dataset, target_dataset)
 
-            # Split into batches of size batch_size and perform pass
-            for i in range(0, input_dataset.shape[0], self.batch_size):
-                batch = shuffled_input[i:i + self.batch_size]
-                pred = self.network.forward(batch)
-                loss = self._loss_layer.forward(pred, shuffled_target[i:i+self.batch_size])
-                self.network.backward(pred) # TODO: double check
-                self.network.update_params(self.learning_rate)
-
+                # Split into batches of size batch_size and perform pass
+                for i in range(0, input_dataset.shape[0], self.batch_size):
+                    batch = shuffled_input[i:i + self.batch_size]
+                    pred = self.network.forward(batch)
+                    loss = self._loss_layer.forward(pred, shuffled_target[i:i+self.batch_size])
+                    self.network.backward(pred) # TODO: double check
+                    self.network.update_params(self.learning_rate)
+        except Exception as e:
+            print(e)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -568,10 +573,13 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        out = self.network.forward(input_dataset)
-        print(out.shape)
-        print(target_dataset.shape)
-        return self._loss_layer.forward(out, target_dataset)
+        try:
+            out = self.network.forward(input_dataset)
+            print(out.shape)
+            print(target_dataset.shape)
+            return self._loss_layer.forward(out, target_dataset)
+        except Exception as e:
+            print(e)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
