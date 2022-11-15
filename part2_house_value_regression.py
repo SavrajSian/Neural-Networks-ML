@@ -6,6 +6,8 @@ from sklearn import preprocessing
 
 
 class Regressor():
+    missing_values = None
+    one_hot_cols = None
 
     def __init__(self, x, nb_epoch=1000):
         # You can add any input parameters you need
@@ -26,10 +28,16 @@ class Regressor():
         #######################################################################
 
         # Replace this code with your own
+        # TODO: Complete function
         X, _ = self._preprocessor(x, training=True)
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch
+
+        # Model parameters
+        self.model = torch.nn.Linear(self.input_size, self.output_size)
+        self.loss_fn = torch.nn.MSELoss()
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.03)
         return
 
         #######################################################################
@@ -37,14 +45,14 @@ class Regressor():
         #######################################################################
 
     def _preprocessor(self, x, y=None, training=False):
-        """ 
+        """
         Preprocess input of the network.
-          
+
         Arguments:
-            - x {pd.DataFrame} -- Raw input array of shape 
+            - x {pd.DataFrame} -- Raw input array of shape
                 (batch_size, input_size).
             - y {pd.DataFrame} -- Raw target array of shape (batch_size, 1).
-            - training {boolean} -- Boolean indicating if we are training or 
+            - training {boolean} -- Boolean indicating if we are training or
                 testing the model.
 
         Returns:
@@ -52,19 +60,49 @@ class Regressor():
               size (batch_size, input_size). The input_size does not have to be the same as the input_size for x above.
             - {torch.tensor} or {numpy.ndarray} -- Preprocessed target array of
               size (batch_size, 1).
-            
+
         """
 
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
         # Return preprocessed x and y, return None for y if it was None
-        x = x.fillna()
-        x_np = x.to_numpy()
-        x_proximity = x["ocean_proximity"].to_numpy()
 
+        # TODO: finish this function (very incomplete and probably wrong logic)
+
+        # Fill missing values
+        if self.missing_values is None:
+            self.missing_values = {'longitude': 0, 'latitude': 0, 'housing_median_age': 0, 'total_rooms': 0,
+                                   'total_bedrooms': 0,
+                                   'population': 0, 'households': 0, 'median_income': 0, 'ocean_proximity': "NEARBY",
+                                   'median_house_value': 0}
+        print(x)
+        x = x.fillna(value=self.missing_values)
+        x_np = x.to_numpy()
+
+        # 1-hot encoding textual value TODO: retain column order for later
         self.lb = preprocessing.LabelBinarizer()
-        self.lb.fit(x_proximity)
+        self.lb.fit_transform(x['ocean_proximity'])
+        self.one_hot_cols = self.lb.classes_
+
+        #x = pd.get_dummies(data=x, columns=['ocean_proximity'])
+
+
+        # Normalise numerical values
+        # Could be replaced by Pandas/PyTorch function?
+        self.a = 0
+        self.b = 1
+
+        if training:
+            self._min = np.amin(x)
+            self._max = np.amax(x)
+
+        factor = (self.b - self.a) / (self._max - self._min)
+        inverse_factor = (self._max - self._min) / (self.b - self.a)
+
+        self.normalize = lambda y: self.a + (y - self._min) * factor
+        self.retrieve = lambda y: self._min + (y - self.a) * inverse_factor
+
         return x, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
@@ -76,7 +114,7 @@ class Regressor():
         Regressor training function
 
         Arguments:
-            - x {pd.DataFrame} -- Raw input array of shape 
+            - x {pd.DataFrame} -- Raw input array of shape
                 (batch_size, input_size).
             - y {pd.DataFrame} -- Raw output array of shape (batch_size, 1).
 
@@ -88,8 +126,23 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
+        # TODO: any additional stuff such as batch learning
         X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
+
+        for i in range(self.nb_epoch):
+            # Forward pass
+            predictions = self.model(X)
+
+            # Calculate loss
+            loss = self.loss_fn(predictions, Y)
+
+            # Backward pass
+            self.optimizer.zero_grad()
+            loss.backward()
+
+            # Gradient descent
+            self.optimizer.step()
+
         return self
 
         #######################################################################
@@ -199,6 +252,8 @@ def example_main():
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv")
+    data.isna().sum()
+
 
     # Splitting input and output
     x_train = data.loc[:, data.columns != output_label]
@@ -219,3 +274,16 @@ def example_main():
 
 if __name__ == "__main__":
     example_main()
+
+    output_label = "median_house_value"
+
+    data = pd.read_csv("housing.csv")
+
+    x_train = data.loc[:, data.columns != output_label]
+    y_train = data.loc[:, [output_label]]
+
+    regressor = Regressor(x_train, nb_epoch=10)
+
+    # print("GUYS PART 2 IS VERY COMPLICATED")
+    # print("SO WE SHOULD NOW HAVE 3 PEOPLE WORKING ON PART 2, AND 1 PERSON DEBUGGING PART 1.")
+    # print("OTHERWISE WE WON'T HAVE ENOUGH TIME.")

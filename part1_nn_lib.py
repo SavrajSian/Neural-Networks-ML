@@ -501,13 +501,11 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        try:
-            shuffled_indices = default_rng().permutation(input_dataset.shape[0])
-            input_dataset = input_dataset[shuffled_indices]
-            target_dataset = target_dataset[shuffled_indices]
-            return input_dataset, target_dataset
-        except:
-            traceback.print_exc()
+
+        shuffled_indices = default_rng().permutation(input_dataset.shape[0])
+        input_dataset = input_dataset[shuffled_indices]
+        target_dataset = target_dataset[shuffled_indices]
+        return input_dataset, target_dataset
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -535,22 +533,20 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        try:
-            print(f"Training {self.nb_epoch} times. Batch size: {self.batch_size}.")
-            for j in range(self.nb_epoch):
-                shuffled_input, shuffled_target = input_dataset, target_dataset
-                if self.shuffle_flag:
-                    shuffled_input, shuffled_target = Trainer.shuffle(input_dataset, target_dataset)
+        print(f"Training {self.nb_epoch} times. Batch size: {self.batch_size}.")
+        for j in range(self.nb_epoch):
+            shuffled_input, shuffled_target = input_dataset, target_dataset
+            if self.shuffle_flag:
+                shuffled_input, shuffled_target = Trainer.shuffle(input_dataset, target_dataset)
 
-                # Split into batches of size batch_size and perform pass
-                for i in range(0, input_dataset.shape[0], self.batch_size):
-                    batch = shuffled_input[i:i + self.batch_size]
-                    pred = self.network.forward(batch)
-                    loss = self._loss_layer.forward(pred, shuffled_target[i:i+self.batch_size])
-                    self.network.backward(pred) # TODO: double check
-                    self.network.update_params(self.learning_rate)
-        except:
-            traceback.print_exc()
+            # Split into batches of size batch_size and perform pass
+            for i in range(0, input_dataset.shape[0], self.batch_size):
+                batch = shuffled_input[i:i + self.batch_size]
+                y = self.network.forward(batch)
+                loss = self._loss_layer.forward(y, shuffled_target[i:i+self.batch_size])
+                print(y, loss)
+                self.network.backward(y)  # TODO: double check
+                self.network.update_params(self.learning_rate)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -572,12 +568,8 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        try:
-            out = self.network.forward(input_dataset)
-            return self._loss_layer.forward(out, target_dataset)
-        except:
-            print("Eval loss")
-            traceback.print_exc()
+        out = self.network.forward(input_dataset)
+        return self._loss_layer.forward(out, target_dataset)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
