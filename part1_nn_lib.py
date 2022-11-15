@@ -3,6 +3,7 @@ from numpy.random import default_rng
 import pickle
 import math
 import sys
+import traceback
 
 
 def xavier_init(size, gain=1.0):
@@ -217,7 +218,6 @@ class LinearLayer(Layer):
     """
     LinearLayer: Performs affine transformation of input.
     """
-    first_pass = True
 
     def __init__(self, n_in, n_out):
         """
@@ -260,10 +260,9 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._cache_current = x
-        if self.first_pass:
-            self._b = np.tile(self._b, (x.shape[0], 1))
-            self.first_pass = False
+        self._b = np.tile(self._b, (x.shape[0], 1))
         z = np.add(np.matmul(x, self._W), self._b)  # y = xW + b
+        self._b = self._b[0]
         return z
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -306,7 +305,7 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._W -= learning_rate * self._grad_W_current
-        self._b -= learning_rate * self._grad_b_current
+        self._b -= (learning_rate * self._grad_b_current)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -507,8 +506,8 @@ class Trainer(object):
             input_dataset = input_dataset[shuffled_indices]
             target_dataset = target_dataset[shuffled_indices]
             return input_dataset, target_dataset
-        except Exception as e:
-            print(e)
+        except:
+            traceback.print_exc()
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -550,8 +549,8 @@ class Trainer(object):
                     loss = self._loss_layer.forward(pred, shuffled_target[i:i+self.batch_size])
                     self.network.backward(pred) # TODO: double check
                     self.network.update_params(self.learning_rate)
-        except Exception as e:
-            print(e)
+        except:
+            traceback.print_exc()
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -575,11 +574,10 @@ class Trainer(object):
         #######################################################################
         try:
             out = self.network.forward(input_dataset)
-            print(out.shape)
-            print(target_dataset.shape)
             return self._loss_layer.forward(out, target_dataset)
-        except Exception as e:
-            print(e)
+        except:
+            print("Eval loss")
+            traceback.print_exc()
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -612,8 +610,8 @@ class Preprocessor(object):
         factor = (self.b - self.a) / (self._max - self._min)
         inverse_factor = (self._max - self._min) / (self.b - self.a)
 
-        self.normalize = lambda x: self.a + (x - self._min) * factor
-        self.retrieve = lambda x: self._min + (x - self.a) * inverse_factor
+        self.normalize = lambda y: self.a + (y - self._min) * factor
+        self.retrieve = lambda y: self._min + (y - self.a) * inverse_factor
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################

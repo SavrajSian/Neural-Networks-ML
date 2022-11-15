@@ -2,6 +2,7 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+from sklearn import preprocessing
 
 
 class Regressor():
@@ -57,9 +58,13 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
-        # Replace this code with your own
         # Return preprocessed x and y, return None for y if it was None
+        x = x.fillna()
+        x_np = x.to_numpy()
+        x_proximity = x["ocean_proximity"].to_numpy()
+
+        self.lb = preprocessing.LabelBinarizer()
+        self.lb.fit(x_proximity)
         return x, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
