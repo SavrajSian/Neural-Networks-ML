@@ -2,7 +2,7 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
-from sklearn import preprocessing
+from sklearn import preprocessing, metrics
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import MinMaxScaler
 
@@ -32,12 +32,12 @@ class Regressor():
         # Replace this code with your own
         # TODO: Complete function
         X, _ = self._preprocessor(x, training=True)
-        self.input_size = X.shape[1]
+        self.input_size = X.shape[1]  # Number of features
         self.output_size = 1
         self.nb_epoch = nb_epoch
 
         # Model parameters
-        self.model = torch.nn.Linear(self.input_size, self.output_size)
+        self.model = torch.nn.Linear(self.input_size, self.output_size).double()
         self.loss_fn = torch.nn.MSELoss()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.03)
         return
@@ -70,12 +70,16 @@ class Regressor():
         #######################################################################
         # Return preprocessed x and y, return None for y if it was None
 
-        # Fill missing values TODO: use kNN
+        # Fill missing values TODO: use kNN/test median,mode,other metrics
         m = x['total_bedrooms'].mean()
         if self.missing_values is None:
-            self.missing_values = {'longitude': x["longitude"].mean(), 'latitude': x["latitude"].mean(), 'housing_median_age': x["housing_median_age"].mean(), 'total_rooms': x["total_rooms"].mean(),
+            self.missing_values = {'longitude': x["longitude"].mean(), 'latitude': x["latitude"].mean(),
+                                   'housing_median_age': x["housing_median_age"].mean(),
+                                   'total_rooms': x["total_rooms"].mean(),
                                    'total_bedrooms': x["total_bedrooms"].mean(),
-                                   'population': x["population"].mean(), 'households': x["households"].mean(), 'median_income': x["median_income"].mean(), 'ocean_proximity': x["ocean_proximity"].mode().to_string()}
+                                   'population': x["population"].mean(), 'households': x["households"].mean(),
+                                   'median_income': x["median_income"].mean(),
+                                   'ocean_proximity': x["ocean_proximity"].mode().to_string()}
         x = x.fillna(value=self.missing_values)
 
         # 1-hot encoding textual value TODO: retain column order for later
@@ -87,15 +91,14 @@ class Regressor():
         enc = self.lb.fit_transform(x['ocean_proximity'])
         x = x.drop('ocean_proximity', axis=1)
         for i, col in enumerate(self.one_hot_cols):
-            x[col] = enc[:, i]
+            x[str(col)] = enc[:, i]
 
         if training:
-            self.scaler = MinMaxScaler()
+            self.scaler = MinMaxScaler() #TODO: try other scalers eg 0 mean unit variance
             self.scaler.fit(x)
 
         x = self.scaler.transform(x)
         pd.set_option('display.max_columns', None)
-        print(x)
         return x, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
@@ -130,10 +133,9 @@ class Regressor():
 
         for i in range(self.nb_epoch):
             # Forward pass
-            predictions = self.model(X)
-
+            predictions = self.model(torch.from_numpy(X))
             # Calculate loss
-            loss = self.loss_fn(predictions, Y)
+            loss = self.loss_fn(predictions.double(), torch.Tensor(Y.values).double())
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -165,8 +167,8 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training=False)  # Do not forget
-        return self.model(X)
+        # X, _ = self._preprocessor(x, training=False)  # Do not forget
+        return self.model(x)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -191,7 +193,12 @@ class Regressor():
         #######################################################################
 
         X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
-        return 0  # Replace this code with your own
+        predicted_labels = []
+        for X_point in X:
+            predicted_labels.append(self.predict(torch.from_numpy(X_point)).item())
+        print(y.values.tolist()[:10])
+        print(predicted_labels[:10])
+        return metrics.r2_score(y.values.tolist(), predicted_labels)  # Replace this code with your own
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -252,7 +259,6 @@ def example_main():
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv")
     data.isna().sum()
-
 
     # Splitting input and output
     x_train = data.loc[:, data.columns != output_label]
