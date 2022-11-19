@@ -3,6 +3,8 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import MinMaxScaler
 
 
 class Regressor():
@@ -68,41 +70,32 @@ class Regressor():
         #######################################################################
         # Return preprocessed x and y, return None for y if it was None
 
-        # TODO: finish this function (very incomplete and probably wrong logic)
-
-        # Fill missing values
+        # Fill missing values TODO: use kNN
+        m = x['total_bedrooms'].mean()
         if self.missing_values is None:
-            self.missing_values = {'longitude': 0, 'latitude': 0, 'housing_median_age': 0, 'total_rooms': 0,
-                                   'total_bedrooms': 0,
-                                   'population': 0, 'households': 0, 'median_income': 0, 'ocean_proximity': "NEARBY",
-                                   'median_house_value': 0}
-        print(x)
+            self.missing_values = {'longitude': x["longitude"].mean(), 'latitude': x["latitude"].mean(), 'housing_median_age': x["housing_median_age"].mean(), 'total_rooms': x["total_rooms"].mean(),
+                                   'total_bedrooms': x["total_bedrooms"].mean(),
+                                   'population': x["population"].mean(), 'households': x["households"].mean(), 'median_income': x["median_income"].mean(), 'ocean_proximity': x["ocean_proximity"].mode().to_string()}
         x = x.fillna(value=self.missing_values)
-        x_np = x.to_numpy()
 
         # 1-hot encoding textual value TODO: retain column order for later
-        self.lb = preprocessing.LabelBinarizer()
-        self.lb.fit_transform(x['ocean_proximity'])
-        self.one_hot_cols = self.lb.classes_
+        if training:
+            self.lb = preprocessing.LabelBinarizer()
+            self.lb.fit_transform(x['ocean_proximity'])
+            self.one_hot_cols = self.lb.classes_
 
-        #x = pd.get_dummies(data=x, columns=['ocean_proximity'])
-
-
-        # Normalise numerical values
-        # Could be replaced by Pandas/PyTorch function?
-        self.a = 0
-        self.b = 1
+        enc = self.lb.fit_transform(x['ocean_proximity'])
+        x = x.drop('ocean_proximity', axis=1)
+        for i, col in enumerate(self.one_hot_cols):
+            x[col] = enc[:, i]
 
         if training:
-            self._min = np.amin(x)
-            self._max = np.amax(x)
+            self.scaler = MinMaxScaler()
+            self.scaler.fit(x)
 
-        factor = (self.b - self.a) / (self._max - self._min)
-        inverse_factor = (self._max - self._min) / (self.b - self.a)
-
-        self.normalize = lambda y: self.a + (y - self._min) * factor
-        self.retrieve = lambda y: self._min + (y - self.a) * inverse_factor
-
+        x = self.scaler.transform(x)
+        pd.set_option('display.max_columns', None)
+        print(x)
         return x, (y if isinstance(y, pd.DataFrame) else None)
 
         #######################################################################
@@ -112,6 +105,12 @@ class Regressor():
     def fit(self, x, y):
         """
         Regressor training function
+
+        Perform forward pass though the model given the input.
+        • Compute the loss based on this forward pass.
+        • Perform backwards pass to compute gradients of loss with respect to parameters of the model.
+        • Perform one step of gradient descent on the model parameters.
+        • You are free to implement any additional steps to improve learning (batch-learning, shuffling...)
 
         Arguments:
             - x {pd.DataFrame} -- Raw input array of shape
@@ -167,7 +166,7 @@ class Regressor():
         #######################################################################
 
         X, _ = self._preprocessor(x, training=False)  # Do not forget
-        pass
+        return self.model(X)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -263,8 +262,11 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
+    print("Creating regressor")
     regressor = Regressor(x_train, nb_epoch=10)
+    print("Fitting data")
     regressor.fit(x_train, y_train)
+    print("Save to file")
     save_regressor(regressor)
 
     # Error
@@ -283,7 +285,3 @@ if __name__ == "__main__":
     y_train = data.loc[:, [output_label]]
 
     regressor = Regressor(x_train, nb_epoch=10)
-
-    # print("GUYS PART 2 IS VERY COMPLICATED")
-    # print("SO WE SHOULD NOW HAVE 3 PEOPLE WORKING ON PART 2, AND 1 PERSON DEBUGGING PART 1.")
-    # print("OTHERWISE WE WON'T HAVE ENOUGH TIME.")
