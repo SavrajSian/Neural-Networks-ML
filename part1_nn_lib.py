@@ -598,7 +598,7 @@ class Preprocessor(object):
 
         self._min = np.amin(data)
         self._max = np.amax(data)
-        if np.all(data == data[0, 0]):
+        if self._min == self._max:
             #  Div 0 case
             self.normalize = lambda y: (y/y) / (sum(len(r) for r in data))
             self.retrieve = lambda y: (y/y) * data[0, 0]
