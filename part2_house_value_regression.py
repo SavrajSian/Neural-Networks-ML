@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 import pickle
 import numpy as np
 import pandas as pd
@@ -33,14 +34,19 @@ class Regressor():
         # TODO: Complete function
         X, _ = self._preprocessor(x, training=True)
         self.input_size = X.shape[1]  # Number of features
+        self.hidden_features = self.input_size * 2
         self.output_size = 1
         self.nb_epoch = nb_epoch
 
-        # Model parameters
-        self.model = torch.nn.Linear(self.input_size, self.output_size).double()
-        self.loss_fn = torch.nn.MSELoss()
+        # Neural network variables
+        self.loss_fn = nn.MSELoss()
+
+        layers = [nn.Linear(self.input_size, self.hidden_features),
+                  nn.Linear(self.hidden_features, self.output_size)]
+
+        self.model = nn.Sequential(*layers)
+
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.03)
-        return
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -70,8 +76,9 @@ class Regressor():
         #######################################################################
         # Return preprocessed x and y, return None for y if it was None
 
+        x_pre = x
+
         # Fill missing values TODO: use kNN/test median,mode,other metrics
-        m = x['total_bedrooms'].mean()
         if self.missing_values is None:
             self.missing_values = {'longitude': x["longitude"].mean(), 'latitude': x["latitude"].mean(),
                                    'housing_median_age': x["housing_median_age"].mean(),
@@ -80,26 +87,27 @@ class Regressor():
                                    'population': x["population"].mean(), 'households': x["households"].mean(),
                                    'median_income': x["median_income"].mean(),
                                    'ocean_proximity': x["ocean_proximity"].mode().to_string()}
-        x = x.fillna(value=self.missing_values)
+        x_pre = x_pre.fillna(value=self.missing_values)
 
         # 1-hot encoding textual value TODO: retain column order for later
         if training:
             self.lb = preprocessing.LabelBinarizer()
-            self.lb.fit_transform(x['ocean_proximity'])
+            self.lb.fit(x_pre['ocean_proximity'])
             self.one_hot_cols = self.lb.classes_
 
-        enc = self.lb.fit_transform(x['ocean_proximity'])
-        x = x.drop('ocean_proximity', axis=1)
+        enc = self.lb.transform(x_pre['ocean_proximity'])
+        x_pre = x_pre.drop('ocean_proximity', axis=1)
         for i, col in enumerate(self.one_hot_cols):
-            x[str(col)] = enc[:, i]
+            x_pre[str(col)] = enc[:, i]
 
         if training:
-            self.scaler = MinMaxScaler() #TODO: try other scalers eg 0 mean unit variance
-            self.scaler.fit(x)
+            self.scaler = MinMaxScaler()  # TODO: try other scalers eg 0 mean unit variance
+            self.scaler.fit(x_pre)
 
-        x = self.scaler.transform(x)
-        pd.set_option('display.max_columns', None)
-        return x, (y if isinstance(y, pd.DataFrame) else None)
+        # pd.set_option('display.max_columns', None)
+        x_out = self.scaler.transform(x_pre)
+
+        return x_out, (y if y is None else y.to_numpy())
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -133,9 +141,9 @@ class Regressor():
 
         for i in range(self.nb_epoch):
             # Forward pass
-            predictions = self.model(torch.from_numpy(X))
+            predictions = self.predict(torch.from_numpy(X))
             # Calculate loss
-            loss = self.loss_fn(predictions.double(), torch.Tensor(Y.values).double())
+            loss = self.loss_fn(predictions, torch.Tensor(Y.values))
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -167,7 +175,7 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        # X, _ = self._preprocessor(x, training=False)  # Do not forget
+        # X, _ = self._preprocessor(x, training=False)  # We are passing in the pre-processed data as input
         return self.model(x)
 
         #######################################################################
@@ -191,7 +199,6 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
         predicted_labels = []
         for X_point in X:
