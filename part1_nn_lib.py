@@ -596,17 +596,17 @@ class Preprocessor(object):
         self.a = 0
         self.b = 1
 
-        self._min = np.amin(data)
-        self._max = np.amax(data)
+        self._min = np.amin(data, axis=0)
+        self._max = np.amax(data, axis=0)
         if np.all(data == data[0, 0]):
             #  Div 0 case
             self.normalize = lambda y: (y/y) / (sum(len(r) for r in data))
             self.retrieve = lambda y: (y/y) * data[0, 0]
         else:
-            factor = (self.b - self.a) / (self._max - self._min)
-            inverse_factor = (self._max - self._min) / (self.b - self.a)
-            self.normalize = lambda y: self.a + (y - self._min) * factor
-            self.retrieve = lambda y: self._min + (y - self.a) * inverse_factor
+            # factor = (self.b - self.a) / (self._max - self._min)
+            # inverse_factor = (self._max - self._min) / (self.b - self.a)
+            self.normalize = lambda y: (y - self._min) / (self._max - self._min)
+            self.retrieve = lambda y: (y * (self._max - self._min)) + self._min
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
