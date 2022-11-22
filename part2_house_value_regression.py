@@ -40,12 +40,15 @@ class Regressor():
 
         # Neural network variables
         self.loss_fn = nn.MSELoss()
+        self.activ_fn = nn.ReLU()
 
         layers = [nn.Linear(self.input_size, self.hidden_features),
-                  nn.Linear(self.hidden_features, self.output_size)]
+                  nn.ReLU(),
+                  nn.Linear(self.hidden_features, self.output_size),
+                  nn.ReLU()
+                 ]
 
         self.model = nn.Sequential(*layers)
-
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.03)
 
         #######################################################################
@@ -106,7 +109,6 @@ class Regressor():
 
         # pd.set_option('display.max_columns', None)
         x_out = self.scaler.transform(x_pre)
-
         return x_out, (y if y is None else y.to_numpy())
 
         #######################################################################
@@ -139,11 +141,15 @@ class Regressor():
         # TODO: any additional stuff such as batch learning
         X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
 
+        print(self.nb_epoch)
         for i in range(self.nb_epoch):
+            self.model.train(True)
+
             # Forward pass
-            predictions = self.predict(torch.from_numpy(X))
+            predictions = self.predict(torch.from_numpy(X).float())
+
             # Calculate loss
-            loss = self.loss_fn(predictions, torch.Tensor(Y.values))
+            loss = self.loss_fn(predictions, torch.from_numpy(Y).float())
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -151,9 +157,9 @@ class Regressor():
 
             # Gradient descent
             self.optimizer.step()
+            print(loss)
 
         return self
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -175,7 +181,8 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        # X, _ = self._preprocessor(x, training=False)  # We are passing in the pre-processed data as input
+        X, _ = self._preprocessor(x, training=False) if x.isinstance(pd.DataFrame) else x
+        self.model.eval()
         return self.model(x)
 
         #######################################################################
@@ -200,13 +207,14 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
         X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
+        self.model.eval()
         predicted_labels = []
-        for X_point in X:
-            predicted_labels.append(self.predict(torch.from_numpy(X_point)).item())
+        X_tensor = torch.from_numpy(X).float()
+        for X_point in X_tensor:
+            predicted_labels.append(self.predict(X_point).item())
         print(y.values.tolist()[:10])
         print(predicted_labels[:10])
         return metrics.r2_score(y.values.tolist(), predicted_labels)  # Replace this code with your own
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -276,11 +284,11 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
     print("Creating regressor")
-    regressor = Regressor(x_train, nb_epoch=10)
+    regressor = Regressor(x_train, nb_epoch=100)
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
-    save_regressor(regressor)
+    # save_regressor(regressor) TODO uncomment
 
     # Error
     error = regressor.score(x_train, y_train)
