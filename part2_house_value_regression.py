@@ -4,11 +4,10 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing, metrics
-from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import MinMaxScaler
 
 
-class Regressor():
+class Regressor:
     missing_values = None
     one_hot_cols = None
 
@@ -29,12 +28,11 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
-        # Replace this code with your own
         # TODO: Complete function
         X, _ = self._preprocessor(x, training=True)
         self.input_size = X.shape[1]  # Number of features
-        self.hidden_features = self.input_size * 2
+        self.hidden_1 = self.input_size * 2
+        self.hidden_2 = self.input_size // 2
         self.output_size = 1
         self.nb_epoch = nb_epoch
 
@@ -42,15 +40,17 @@ class Regressor():
         self.loss_fn = nn.MSELoss()
         self.activ_fn = nn.ReLU()
 
-        layers = [nn.Linear(self.input_size, self.hidden_features),
+        layers = [nn.Linear(self.input_size, self.hidden_1),
                   nn.ReLU(),
-                  nn.Linear(self.hidden_features, self.output_size),
-                  nn.ReLU()
+                  nn.Linear(self.hidden_1, self.input_size),
+                  nn.ReLU(),
+                  nn.Linear(self.input_size, self.hidden_2),
+                  nn.ReLU(),
+                  nn.Linear(self.hidden_2, self.output_size)
                  ]
 
         self.model = nn.Sequential(*layers)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.03)
-
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.1)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -109,6 +109,7 @@ class Regressor():
 
         # pd.set_option('display.max_columns', None)
         x_out = self.scaler.transform(x_pre)
+
         return x_out, (y if y is None else y.to_numpy())
 
         #######################################################################
@@ -140,16 +141,16 @@ class Regressor():
         #######################################################################
         # TODO: any additional stuff such as batch learning
         X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
+        y_tensor = torch.from_numpy(Y).float()
 
-        print(self.nb_epoch)
         for i in range(self.nb_epoch):
             self.model.train(True)
 
             # Forward pass
-            predictions = self.predict(torch.from_numpy(X).float())
+            predictions = self.predict(X)
 
             # Calculate loss
-            loss = self.loss_fn(predictions, torch.from_numpy(Y).float())
+            loss = self.loss_fn(predictions, y_tensor)
 
             # Backward pass
             self.optimizer.zero_grad()
@@ -157,7 +158,6 @@ class Regressor():
 
             # Gradient descent
             self.optimizer.step()
-            print(loss)
 
         return self
         #######################################################################
@@ -180,11 +180,18 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
+        if isinstance(x, pd.DataFrame):
+            X, _ = self._preprocessor(x, training=False)
+        elif isinstance(x, np.ndarray):
+            X = torch.from_numpy(x).float()
+        elif isinstance(x, torch.Tensor):
+            X = x
+        else:
+            print(f"Invalid input type: {type(x)}")
+            return None
 
-        X, _ = self._preprocessor(x, training=False) if x.isinstance(pd.DataFrame) else x
         self.model.eval()
-        return self.model(x)
-
+        return self.model(X)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -206,15 +213,19 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
         self.model.eval()
-        predicted_labels = []
+
+        X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
         X_tensor = torch.from_numpy(X).float()
-        for X_point in X_tensor:
-            predicted_labels.append(self.predict(X_point).item())
-        print(y.values.tolist()[:10])
-        print(predicted_labels[:10])
-        return metrics.r2_score(y.values.tolist(), predicted_labels)  # Replace this code with your own
+
+        predicted_labels = list(map(lambda t: self.predict(t).item(), X_tensor))
+        true_labels = Y.flatten().tolist()
+
+        print(f"\nPredicted: {predicted_labels[:10]}")
+        print(f"True: {true_labels[:10]}")
+        print(f"\nDifference: {(np.array(true_labels[:10]) - np.array(predicted_labels[:10])).tolist()}")
+
+        return metrics.mean_squared_error(true_labels, predicted_labels, squared=False)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -284,7 +295,7 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
     print("Creating regressor")
-    regressor = Regressor(x_train, nb_epoch=100)
+    regressor = Regressor(x_train, nb_epoch=1000)
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
