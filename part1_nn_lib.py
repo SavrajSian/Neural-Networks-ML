@@ -207,7 +207,6 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        # return np.multiply(grad_z, (lambda t: int(t > 0))(self._cache_current))
         return np.multiply(grad_z, np.where(self._cache_current > 0, 1, 0))
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -285,10 +284,10 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._grad_W_current = np.matmul(np.transpose(self._cache_current), grad_z)  # dloss/dZ * dZ/dW
-        self._grad_b_current = np.matmul(np.ones(grad_z.shape[0]), grad_z)  # dloss/dZ * dZ/db
+        self._grad_W_current = np.matmul(np.transpose(self._cache_current), grad_z)  # dLoss/dZ * dZ/dW
+        self._grad_b_current = np.matmul(np.ones(grad_z.shape[0]), grad_z)  # dLoss/dZ * dZ/db
 
-        return np.matmul(grad_z, np.transpose(self._W))  # dloss/dx = dloss/dz * W^T
+        return np.matmul(grad_z, np.transpose(self._W))  # dLoss/dx = dLoss/dz * W^T
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -305,7 +304,7 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._W -= learning_rate * self._grad_W_current
-        self._b -= (learning_rate * self._grad_b_current)
+        self._b -= learning_rate * self._grad_b_current
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -409,6 +408,7 @@ class MultiLayerNetwork(object):
         Arguments:
             learning_rate {float} -- Learning rate of update step.
         """
+
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
@@ -501,7 +501,6 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         shuffled_indices = default_rng().permutation(input_dataset.shape[0])
         input_dataset = input_dataset[shuffled_indices]
         target_dataset = target_dataset[shuffled_indices]
@@ -533,7 +532,6 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        print(f"Training {self.nb_epoch} times. Batch size: {self.batch_size}.")
         for j in range(self.nb_epoch):
             shuffled_input, shuffled_target = input_dataset, target_dataset
             if self.shuffle_flag:
@@ -541,11 +539,12 @@ class Trainer(object):
 
             # Split into batches of size batch_size and perform pass
             for i in range(0, input_dataset.shape[0], self.batch_size):
-                batch = shuffled_input[i:i + self.batch_size]
-                y = self.network.forward(batch)
-                self._loss_layer.forward(y, shuffled_target[i:i+self.batch_size])
+                batch_input = shuffled_input[i: i + self.batch_size]
+                batch_target = shuffled_target[i: i + self.batch_size]
+                y = self.network.forward(batch_input)
+                self._loss_layer.forward(y, batch_target)
                 grad_z = self._loss_layer.backward()
-                self.network.backward(grad_z)  # TODO: double check
+                self.network.backward(grad_z)
                 self.network.update_params(self.learning_rate)
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -598,10 +597,11 @@ class Preprocessor(object):
 
         self._min = np.amin(data, axis=0)
         self._max = np.amax(data, axis=0)
-        if np.all(data == data[0, 0]):
+
+        if np.array_equal(self._min, self._max):
             #  Div 0 case
-            self.normalize = lambda y: (y/y) / (sum(len(r) for r in data))
-            self.retrieve = lambda y: (y/y) * data[0, 0]
+            self.normalize = lambda y: 1.0 / (sum(len(r) for r in data))
+            self.retrieve = lambda y: data[0, 0]
         else:
             factor = (self.b - self.a) / (self._max - self._min)
             inverse_factor = (self._max - self._min) / (self.b - self.a)
@@ -693,11 +693,3 @@ def example_main():
 
 if __name__ == "__main__":
     example_main()
-    # data = np.random.uniform(low=0, high=10, size=(10, 10))
-    # data2 = np.random.uniform(low=10, high=100, size=(10, 10))
-    # # data[0, 1] = 6
-    # prep = Preprocessor(data)
-    # norm = prep.apply(data2)
-    # # print(norm)
-    # rev = prep.revert(norm)
-    # print(np.isclose(rev, data2))
