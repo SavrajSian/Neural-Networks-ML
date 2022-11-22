@@ -5,13 +5,14 @@ import numpy as np
 import pandas as pd
 from sklearn import preprocessing, metrics
 from sklearn.preprocessing import MinMaxScaler
+from numpy.random import default_rng
 
 
 class Regressor:
     missing_values = None
     one_hot_cols = None
 
-    def __init__(self, x, nb_epoch=1000):
+    def __init__(self, x, lr=0.1, nb_epoch=1000, neurons_per_hidden_layer=[24, 12, 12]):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -31,8 +32,6 @@ class Regressor:
         # TODO: Complete function
         X, _ = self._preprocessor(x, training=True)
         self.input_size = X.shape[1]  # Number of features
-        self.hidden_1 = self.input_size * 2
-        self.hidden_2 = self.input_size // 2
         self.output_size = 1
         self.nb_epoch = nb_epoch
 
@@ -40,17 +39,15 @@ class Regressor:
         self.loss_fn = nn.MSELoss()
         self.activ_fn = nn.ReLU()
 
-        layers = [nn.Linear(self.input_size, self.hidden_1),
-                  nn.ReLU(),
-                  nn.Linear(self.hidden_1, self.input_size),
-                  nn.ReLU(),
-                  nn.Linear(self.input_size, self.hidden_2),
-                  nn.ReLU(),
-                  nn.Linear(self.hidden_2, self.output_size)
-                 ]
+        npl = [*neurons_per_hidden_layer, self.output_size]
+
+        layers = [nn.Linear(self.input_size, npl[0])]
+        for i in range(len(npl) - 1):
+            layers.append(nn.ReLU())
+            layers.append(nn.Linear(npl[i], npl[i + 1]))
 
         self.model = nn.Sequential(*layers)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.1)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -262,7 +259,7 @@ def RegressorHyperParameterSearch():
         Add whatever inputs you need.
         
     Returns:
-        The function should return your optimised hyper-parameters. 
+        The function should return your optimised hyper-parameters.
 
     """
 
@@ -270,7 +267,33 @@ def RegressorHyperParameterSearch():
     #                       ** START OF YOUR CODE **
     #######################################################################
 
-    return  # Return the chosen hyper parameters
+    params = {"learning_rate": 0.01}
+    data = pd.read_csv("housing.csv")
+    output_label = "median_house_value"
+
+    x = data.loc[:, data.columns != output_label].sample(frac=1)
+    y = data.loc[:, [output_label]].sample(frac=1)
+
+    split_idx = int(0.8 * len(x))
+    x_train, x_test = x[:split_idx], x[split_idx:]
+    y_train, y_test = y[:split_idx], y[split_idx:]
+
+    best_score = float('inf')
+    for learning_rate in range(1, 200, 10):
+        lr = learning_rate / 1000
+        print(f"Setting lr to: {lr}")
+        regressor = Regressor(x_train, lr=lr)
+        regressor.fit(x_train, y_train)
+        score = regressor.score(x_test, y_test)
+        print(f"Params resulted in score: {score}")
+
+        if score < best_score:
+            best_score = score
+            params["learning_rate"] = lr
+
+    print(f"Best learning rate: {params['learning_rate']}")
+    print(f"Best error: {best_score}")
+    return params  # Return the chosen hyper-parameters
 
     #######################################################################
     #                       ** END OF YOUR CODE **
@@ -278,6 +301,7 @@ def RegressorHyperParameterSearch():
 
 
 def example_main():
+    RegressorHyperParameterSearch()
     output_label = "median_house_value"
 
     # Use pandas to read CSV data as it contains various object types
