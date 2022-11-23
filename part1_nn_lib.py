@@ -148,7 +148,6 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        # grad_z is actually grad_a, bad notation
         x = self._cache_current
         sigmoid_x = 1 / (1 + pow(math.e, -x))
         return np.multiply(grad_z, sigmoid_x * (1 - sigmoid_x))
