@@ -4,13 +4,13 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing, metrics
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from numpy.random import default_rng
 
 
 class Regressor:
 
-    def __init__(self, x, lr=0.1, nb_epoch=10, neurons_per_hidden_layer=[64], batch_size=64):
+    def __init__(self, x, lr=0.05, nb_epoch=250, neurons_per_hidden_layer=[15, 30, 20, 15], batch_size=32):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -27,7 +27,6 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        # TODO: Complete function
         self.missing_values = None
         self.one_hot_cols = None
 
@@ -39,7 +38,7 @@ class Regressor:
         self.batch_size = batch_size
 
         # Neural network variables
-        self.loss_fn = nn.MSELoss(reduction='sum')
+        self.loss_fn = nn.MSELoss()
 
         npl = [*neurons_per_hidden_layer, self.output_size]
 
@@ -47,8 +46,6 @@ class Regressor:
         for i in range(len(npl) - 1):
             layers.append(nn.ReLU())
             layers.append(nn.Linear(npl[i], npl[i + 1]))
-
-        layers.append(nn.ReLU())
 
         self.model = nn.Sequential(*layers)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
@@ -108,7 +105,8 @@ class Regressor:
             self.scaler = StandardScaler()  # TODO: try other scalers eg 0 mean unit variance
             self.scaler.fit(x_pre)
             if y is not None:
-                y = y / 100
+                self.scy = StandardScaler()
+                self.scy.fit(y)
 
         y_pre = y if y is None else self.scy.transform(y)
         return self.scaler.transform(x_pre), y_pre
@@ -193,9 +191,8 @@ class Regressor:
             return None
 
         self.model.eval()
-        y = self.model(X)
-        y = self.scy.inverse_transform(y.detach().numpy())
-        return y
+        prediction_scaled = self.model(X).detach().numpy()
+        return self.scy.inverse_transform(prediction_scaled)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -219,19 +216,16 @@ class Regressor:
         #######################################################################
         self.model.eval()
 
-        X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
+        X, _ = self._preprocessor(x, y=y, training=False)  # Do not forget
         X_tensor = self.to_tensor(X)
 
-        predicted_labels = self.predict(X_tensor) #list(map(lambda t: self.predict(t).item(), X_tensor))
-        true_labels_scaled = Y.flatten().tolist()
-        # true_labels = y.flatten().to_list()
-
+        predicted_labels = self.predict(X_tensor)  # list(map(lambda t: self.predict(t).item(), X_tensor))
 
         # print(f"\nPredicted: {predicted_labels[:10]}")
         # print(f"True: {y.values.tolist()[:10]}")
         # print(f"\nDifference: {(np.array(y[:10]) - np.array(predicted_labels[:10])).tolist()}")
 
-        return metrics.mean_squared_error(y, predicted_labels, squared=False)
+        return metrics.mean_squared_error(y.to_numpy(), predicted_labels, squared=False)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -293,7 +287,7 @@ def RegressorHyperParameterSearch():
             for layer in range(6, 124, 6):
                 lr = learning_rate / 10000
                 print(f"Params set to: {lr}, {batch_size}, {layer}")
-                reg = Regressor(x_train, lr=lr, batch_size=64, nb_epoch=10, neurons_per_hidden_layer=[12, 24])
+                reg = Regressor(x_train, lr=lr, nb_epoch=100, neurons_per_hidden_layer=[12, 24])
                 reg.fit(x_train, y_train)
                 try:
                     score = reg.score(x_test, y_test)
@@ -332,11 +326,11 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
     print("Creating regressor")
-    regressor = Regressor(x_train, lr=0.01, nb_epoch=100, neurons_per_hidden_layer=[15, 15, 15, 15], batch_size=100)
+    regressor = Regressor(x_train)
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
-    save_regressor(regressor)  # TODO uncomment
+    save_regressor(regressor)
 
     # Error
     error = regressor.score(x_train, y_train)
