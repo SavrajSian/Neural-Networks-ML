@@ -195,7 +195,8 @@ class Regressor:
         #######################################################################
         try:
             if isinstance(x, pd.DataFrame):
-                X, _ = self._preprocessor(x, training=False)
+                x_pre, _ = self._preprocessor(x, training=False)
+                X = self.to_tensor(x_pre)
             elif isinstance(x, np.ndarray):
                 X = self.to_tensor(x)
             elif isinstance(x, torch.Tensor):
@@ -206,7 +207,8 @@ class Regressor:
 
             self.model.eval()
             prediction_scaled = self.model(X).detach().numpy()
-            return self.scy.inverse_transform(prediction_scaled)
+            prediction = self.scy.inverse_transform(prediction_scaled)
+            return prediction
         except Exception as e:
             print(e)
             print(traceback.format_exc())
