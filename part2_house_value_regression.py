@@ -10,7 +10,6 @@ from numpy.random import default_rng
 
 class Regressor:
 
-
     def __init__(self, x, lr=0.1, nb_epoch=10, neurons_per_hidden_layer=[64], batch_size=64):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
@@ -31,11 +30,13 @@ class Regressor:
         # TODO: Complete function
         self.missing_values = None
         self.one_hot_cols = None
-        self.batch_size = batch_size
+
         X, _ = self._preprocessor(x, training=True)
+
         self.input_size = X.shape[1]  # Number of features
         self.output_size = 1
         self.nb_epoch = nb_epoch
+        self.batch_size = batch_size
 
         # Neural network variables
         self.loss_fn = nn.MSELoss(reduction='sum')
@@ -50,11 +51,14 @@ class Regressor:
         layers.append(nn.ReLU())
 
         self.model = nn.Sequential(*layers)
-        print(self.model)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
+
+    # Converts numpy array to torch tensor
+    def to_tensor(self, x):
+        return torch.from_numpy(x).float()
 
     def _preprocessor(self, x, y=None, training=False):
         """
@@ -79,18 +83,14 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
         # Return preprocessed x and y, return None for y if it was None
-
         x_pre = x
 
-        # Fill missing values TODO: use kNN/test median,mode,other metrics
+        # Fill missing values
         if self.missing_values is None:
-            self.missing_values = {'longitude': x["longitude"].mean(), 'latitude': x["latitude"].mean(),
-                                   'housing_median_age': x["housing_median_age"].mean(),
-                                   'total_rooms': x["total_rooms"].mean(),
-                                   'total_bedrooms': x["total_bedrooms"].mean(),
-                                   'population': x["population"].mean(), 'households': x["households"].mean(),
-                                   'median_income': x["median_income"].mean(),
-                                   'ocean_proximity': x["ocean_proximity"].mode().to_string()}
+            self.missing_values = {'ocean_proximity': x["ocean_proximity"].mode().to_string()}
+            for col in set(x.columns.values).difference({'ocean_proximity'}):
+                self.missing_values[col] = x[col].mean()
+
         x_pre = x_pre.fillna(value=self.missing_values)
 
         # 1-hot encoding textual value
@@ -108,15 +108,10 @@ class Regressor:
             self.scaler = StandardScaler()  # TODO: try other scalers eg 0 mean unit variance
             self.scaler.fit(x_pre)
             if y is not None:
-                self.scy = StandardScaler()
-                self.scy.fit(y)
+                y = y / 100
 
-        x_out = self.scaler.transform(x_pre)
-        if y is not None:
-            y = self.scy.transform(y)
-
-        return x_out, y
-
+        y_pre = y if y is None else self.scy.transform(y)
+        return self.scaler.transform(x_pre), y_pre
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -144,18 +139,17 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        # TODO: any additional stuff such as batch learning
         X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
-        print(Y)
+        len_X = X.shape[0]
         self.model.train(True)
 
         for i in range(self.nb_epoch):
-
-            for i in range(0, X.shape[0], self.batch_size):
-                y_tensor = torch.from_numpy(Y[i:i+self.batch_size]).float()
+            for j in range(0, len_X, self.batch_size):
+                x_tensor = self.to_tensor(X[j: min(len_X, j + self.batch_size)])
+                y_tensor = self.to_tensor(Y[j: min(len_X, j + self.batch_size)])
 
                 # Forward pass
-                predictions = self.model(torch.from_numpy(X[i:i+self.batch_size]).float())
+                predictions = self.model(x_tensor)
 
                 # Calculate loss
                 loss = self.loss_fn(predictions, y_tensor)
@@ -191,7 +185,7 @@ class Regressor:
         if isinstance(x, pd.DataFrame):
             X, _ = self._preprocessor(x, training=False)
         elif isinstance(x, np.ndarray):
-            X = torch.from_numpy(x).float()
+            X = self.to_tensor(x)
         elif isinstance(x, torch.Tensor):
             X = x
         else:
@@ -226,7 +220,7 @@ class Regressor:
         self.model.eval()
 
         X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
-        X_tensor = torch.from_numpy(X).float()
+        X_tensor = self.to_tensor(X)
 
         predicted_labels = self.predict(X_tensor) #list(map(lambda t: self.predict(t).item(), X_tensor))
         true_labels_scaled = Y.flatten().tolist()
@@ -338,11 +332,11 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
     print("Creating regressor")
-    regressor = Regressor(x_train, lr=0.01, nb_epoch=100, neurons_per_hidden_layer=[10, 10], batch_size=100)
+    regressor = Regressor(x_train, lr=0.01, nb_epoch=100, neurons_per_hidden_layer=[15, 15, 15, 15], batch_size=100)
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
-    # save_regressor(regressor) TODO uncomment
+    save_regressor(regressor)  # TODO uncomment
 
     # Error
     error = regressor.score(x_train, y_train)
