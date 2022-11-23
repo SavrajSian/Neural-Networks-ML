@@ -4,15 +4,14 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing, metrics
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from numpy.random import default_rng
 
 
 class Regressor:
-    missing_values = None
-    one_hot_cols = None
 
-    def __init__(self, x, lr=0.1, nb_epoch=1000, neurons_per_hidden_layer=[24, 12, 12]):
+
+    def __init__(self, x, lr=0.1, nb_epoch=10, neurons_per_hidden_layer=[64], batch_size=64):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -30,14 +29,16 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
         # TODO: Complete function
+        self.missing_values = None
+        self.one_hot_cols = None
+        self.batch_size = batch_size
         X, _ = self._preprocessor(x, training=True)
         self.input_size = X.shape[1]  # Number of features
         self.output_size = 1
         self.nb_epoch = nb_epoch
 
         # Neural network variables
-        self.loss_fn = nn.MSELoss()
-        self.activ_fn = nn.ReLU()
+        self.loss_fn = nn.MSELoss(reduction='sum')
 
         npl = [*neurons_per_hidden_layer, self.output_size]
 
@@ -46,8 +47,11 @@ class Regressor:
             layers.append(nn.ReLU())
             layers.append(nn.Linear(npl[i], npl[i + 1]))
 
+        layers.append(nn.ReLU())
+
         self.model = nn.Sequential(*layers)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        print(self.model)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -89,7 +93,7 @@ class Regressor:
                                    'ocean_proximity': x["ocean_proximity"].mode().to_string()}
         x_pre = x_pre.fillna(value=self.missing_values)
 
-        # 1-hot encoding textual value TODO: retain column order for later
+        # 1-hot encoding textual value
         if training:
             self.lb = preprocessing.LabelBinarizer()
             self.lb.fit(x_pre['ocean_proximity'])
@@ -101,13 +105,17 @@ class Regressor:
             x_pre[str(col)] = enc[:, i]
 
         if training:
-            self.scaler = MinMaxScaler()  # TODO: try other scalers eg 0 mean unit variance
+            self.scaler = StandardScaler()  # TODO: try other scalers eg 0 mean unit variance
             self.scaler.fit(x_pre)
+            if y is not None:
+                self.scy = StandardScaler()
+                self.scy.fit(y)
 
-        # pd.set_option('display.max_columns', None)
         x_out = self.scaler.transform(x_pre)
+        if y is not None:
+            y = self.scy.transform(y)
 
-        return x_out, (y if y is None else y.to_numpy())
+        return x_out, y
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -138,23 +146,26 @@ class Regressor:
         #######################################################################
         # TODO: any additional stuff such as batch learning
         X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
-        y_tensor = torch.from_numpy(Y).float()
+        print(Y)
+        self.model.train(True)
 
         for i in range(self.nb_epoch):
-            self.model.train(True)
 
-            # Forward pass
-            predictions = self.predict(X)
+            for i in range(0, X.shape[0], self.batch_size):
+                y_tensor = torch.from_numpy(Y[i:i+self.batch_size]).float()
 
-            # Calculate loss
-            loss = self.loss_fn(predictions, y_tensor)
+                # Forward pass
+                predictions = self.model(torch.from_numpy(X[i:i+self.batch_size]).float())
 
-            # Backward pass
-            self.optimizer.zero_grad()
-            loss.backward()
+                # Calculate loss
+                loss = self.loss_fn(predictions, y_tensor)
 
-            # Gradient descent
-            self.optimizer.step()
+                # Backward pass
+                self.optimizer.zero_grad()
+                loss.backward()
+
+                # Gradient descent
+                self.optimizer.step()
 
         return self
         #######################################################################
@@ -188,7 +199,9 @@ class Regressor:
             return None
 
         self.model.eval()
-        return self.model(X)
+        y = self.model(X)
+        y = self.scy.inverse_transform(y.detach().numpy())
+        return y
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -215,14 +228,16 @@ class Regressor:
         X, Y = self._preprocessor(x, y=y, training=False)  # Do not forget
         X_tensor = torch.from_numpy(X).float()
 
-        predicted_labels = list(map(lambda t: self.predict(t).item(), X_tensor))
-        true_labels = Y.flatten().tolist()
+        predicted_labels = self.predict(X_tensor) #list(map(lambda t: self.predict(t).item(), X_tensor))
+        true_labels_scaled = Y.flatten().tolist()
+        # true_labels = y.flatten().to_list()
 
-        print(f"\nPredicted: {predicted_labels[:10]}")
-        print(f"True: {true_labels[:10]}")
-        print(f"\nDifference: {(np.array(true_labels[:10]) - np.array(predicted_labels[:10])).tolist()}")
 
-        return metrics.mean_squared_error(true_labels, predicted_labels, squared=False)
+        # print(f"\nPredicted: {predicted_labels[:10]}")
+        # print(f"True: {y.values.tolist()[:10]}")
+        # print(f"\nDifference: {(np.array(y[:10]) - np.array(predicted_labels[:10])).tolist()}")
+
+        return metrics.mean_squared_error(y, predicted_labels, squared=False)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -279,17 +294,21 @@ def RegressorHyperParameterSearch():
     y_train, y_test = y[:split_idx], y[split_idx:]
 
     best_score = float('inf')
-    for learning_rate in range(1, 200, 10):
-        lr = learning_rate / 1000
-        print(f"Setting lr to: {lr}")
-        regressor = Regressor(x_train, lr=lr)
-        regressor.fit(x_train, y_train)
-        score = regressor.score(x_test, y_test)
-        print(f"Params resulted in score: {score}")
-
-        if score < best_score:
-            best_score = score
-            params["learning_rate"] = lr
+    for learning_rate in range(10, 5000, 100):
+        for batch_size in range(8, 128, 8):
+            for layer in range(6, 124, 6):
+                lr = learning_rate / 10000
+                print(f"Params set to: {lr}, {batch_size}, {layer}")
+                reg = Regressor(x_train, lr=lr, batch_size=64, nb_epoch=10, neurons_per_hidden_layer=[12, 24])
+                reg.fit(x_train, y_train)
+                try:
+                    score = reg.score(x_test, y_test)
+                    if score < best_score:
+                        print(f"Params resulted in new best score: {score}")
+                        best_score = score
+                        params["learning_rate"] = lr
+                except:
+                    print("failed")
 
     print(f"Best learning rate: {params['learning_rate']}")
     print(f"Best error: {best_score}")
@@ -301,7 +320,7 @@ def RegressorHyperParameterSearch():
 
 
 def example_main():
-    RegressorHyperParameterSearch()
+    # RegressorHyperParameterSearch()
     output_label = "median_house_value"
 
     # Use pandas to read CSV data as it contains various object types
@@ -319,7 +338,7 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
     print("Creating regressor")
-    regressor = Regressor(x_train, nb_epoch=1000)
+    regressor = Regressor(x_train, lr=0.01, nb_epoch=100, neurons_per_hidden_layer=[10, 10], batch_size=100)
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
@@ -332,12 +351,3 @@ def example_main():
 
 if __name__ == "__main__":
     example_main()
-
-    output_label = "median_house_value"
-
-    data = pd.read_csv("housing.csv")
-
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
-
-    regressor = Regressor(x_train, nb_epoch=10)
