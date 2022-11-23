@@ -6,6 +6,7 @@ import pandas as pd
 from sklearn import preprocessing, metrics
 from sklearn.preprocessing import StandardScaler
 from numpy.random import default_rng
+import traceback
 
 
 class Regressor:
@@ -27,28 +28,32 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self.missing_values = None
-        self.one_hot_cols = None
+        try:
+            self.missing_values = None
+            self.one_hot_cols = None
 
-        X, _ = self._preprocessor(x, training=True)
+            X, _ = self._preprocessor(x, training=True)
 
-        self.input_size = X.shape[1]  # Number of features
-        self.output_size = 1
-        self.nb_epoch = nb_epoch
-        self.batch_size = batch_size
+            self.input_size = X.shape[1]  # Number of features
+            self.output_size = 1
+            self.nb_epoch = nb_epoch
+            self.batch_size = batch_size
 
-        # Neural network variables
-        self.loss_fn = nn.MSELoss()
+            # Neural network variables
+            self.loss_fn = nn.MSELoss()
 
-        npl = [*neurons_per_hidden_layer, self.output_size]
+            npl = [*neurons_per_hidden_layer, self.output_size]
 
-        layers = [nn.Linear(self.input_size, npl[0])]
-        for i in range(len(npl) - 1):
-            layers.append(nn.ReLU())
-            layers.append(nn.Linear(npl[i], npl[i + 1]))
+            layers = [nn.Linear(self.input_size, npl[0])]
+            for i in range(len(npl) - 1):
+                layers.append(nn.ReLU())
+                layers.append(nn.Linear(npl[i], npl[i + 1]))
 
-        self.model = nn.Sequential(*layers)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
+            self.model = nn.Sequential(*layers)
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -80,36 +85,40 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
         # Return preprocessed x and y, return None for y if it was None
-        x_pre = x
+        try:
+            x_pre = x
 
-        # Fill missing values
-        if self.missing_values is None:
-            self.missing_values = {'ocean_proximity': x["ocean_proximity"].mode().to_string()}
-            for col in set(x.columns.values).difference({'ocean_proximity'}):
-                self.missing_values[col] = x[col].mean()
+            # Fill missing values
+            if self.missing_values is None:
+                self.missing_values = {'ocean_proximity': x["ocean_proximity"].mode().to_string()}
+                for col in set(x.columns.values).difference({'ocean_proximity'}):
+                    self.missing_values[col] = x[col].mean()
 
-        x_pre = x_pre.fillna(value=self.missing_values)
+            x_pre = x_pre.fillna(value=self.missing_values)
 
-        # 1-hot encoding textual value
-        if training:
-            self.lb = preprocessing.LabelBinarizer()
-            self.lb.fit(x_pre['ocean_proximity'])
-            self.one_hot_cols = self.lb.classes_
+            # 1-hot encoding textual value
+            if training:
+                self.lb = preprocessing.LabelBinarizer()
+                self.lb.fit(x_pre['ocean_proximity'])
+                self.one_hot_cols = self.lb.classes_
 
-        enc = self.lb.transform(x_pre['ocean_proximity'])
-        x_pre = x_pre.drop('ocean_proximity', axis=1)
-        for i, col in enumerate(self.one_hot_cols):
-            x_pre[str(col)] = enc[:, i]
+            enc = self.lb.transform(x_pre['ocean_proximity'])
+            x_pre = x_pre.drop('ocean_proximity', axis=1)
+            for i, col in enumerate(self.one_hot_cols):
+                x_pre[str(col)] = enc[:, i]
 
-        if training:
-            self.scaler = StandardScaler()  # TODO: try other scalers eg 0 mean unit variance
-            self.scaler.fit(x_pre)
-            if y is not None:
-                self.scy = StandardScaler()
-                self.scy.fit(y)
+            if training:
+                self.scaler = StandardScaler()  # TODO: try other scalers eg 0 mean unit variance
+                self.scaler.fit(x_pre)
+                if y is not None:
+                    self.scy = StandardScaler()
+                    self.scy.fit(y)
 
-        y_pre = y if y is None else self.scy.transform(y)
-        return self.scaler.transform(x_pre), y_pre
+            y_pre = y if y is None else self.scy.transform(y)
+            return self.scaler.transform(x_pre), y_pre
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -137,29 +146,33 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
-        len_X = X.shape[0]
-        self.model.train(True)
+        try:
+            X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
+            len_X = X.shape[0]
+            self.model.train(True)
 
-        for i in range(self.nb_epoch):
-            for j in range(0, len_X, self.batch_size):
-                x_tensor = self.to_tensor(X[j: min(len_X, j + self.batch_size)])
-                y_tensor = self.to_tensor(Y[j: min(len_X, j + self.batch_size)])
+            for i in range(self.nb_epoch):
+                for j in range(0, len_X, self.batch_size):
+                    x_tensor = self.to_tensor(X[j: min(len_X, j + self.batch_size)])
+                    y_tensor = self.to_tensor(Y[j: min(len_X, j + self.batch_size)])
 
-                # Forward pass
-                predictions = self.model(x_tensor)
+                    # Forward pass
+                    predictions = self.model(x_tensor)
 
-                # Calculate loss
-                loss = self.loss_fn(predictions, y_tensor)
+                    # Calculate loss
+                    loss = self.loss_fn(predictions, y_tensor)
 
-                # Backward pass
-                self.optimizer.zero_grad()
-                loss.backward()
+                    # Backward pass
+                    self.optimizer.zero_grad()
+                    loss.backward()
 
-                # Gradient descent
-                self.optimizer.step()
+                    # Gradient descent
+                    self.optimizer.step()
 
-        return self
+            return self
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -180,19 +193,23 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        if isinstance(x, pd.DataFrame):
-            X, _ = self._preprocessor(x, training=False)
-        elif isinstance(x, np.ndarray):
-            X = self.to_tensor(x)
-        elif isinstance(x, torch.Tensor):
-            X = x
-        else:
-            print(f"Invalid input type: {type(x)}")
-            return None
+        try:
+            if isinstance(x, pd.DataFrame):
+                X, _ = self._preprocessor(x, training=False)
+            elif isinstance(x, np.ndarray):
+                X = self.to_tensor(x)
+            elif isinstance(x, torch.Tensor):
+                X = x
+            else:
+                print(f"Invalid input type: {type(x)}")
+                return None
 
-        self.model.eval()
-        prediction_scaled = self.model(X).detach().numpy()
-        return self.scy.inverse_transform(prediction_scaled)
+            self.model.eval()
+            prediction_scaled = self.model(X).detach().numpy()
+            return self.scy.inverse_transform(prediction_scaled)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -214,18 +231,19 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self.model.eval()
+        try:
+            self.model.eval()
 
-        X, _ = self._preprocessor(x, y=y, training=False)  # Do not forget
-        X_tensor = self.to_tensor(X)
+            X, _ = self._preprocessor(x, y=y, training=False)  # Do not forget
+            X_tensor = self.to_tensor(X)
 
-        predicted_labels = self.predict(X_tensor)  # list(map(lambda t: self.predict(t).item(), X_tensor))
+            predicted_labels = self.predict(X_tensor)  # list(map(lambda t: self.predict(t).item(), X_tensor))
+            true_labels = y.to_numpy()
 
-        # print(f"\nPredicted: {predicted_labels[:10]}")
-        # print(f"True: {y.values.tolist()[:10]}")
-        # print(f"\nDifference: {(np.array(y[:10]) - np.array(predicted_labels[:10])).tolist()}")
-
-        return metrics.mean_squared_error(y.to_numpy(), predicted_labels, squared=False)
+            return metrics.mean_squared_error(true_labels, predicted_labels, squared=False)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -274,8 +292,9 @@ def RegressorHyperParameterSearch():
     data = pd.read_csv("housing.csv")
     output_label = "median_house_value"
 
-    x = data.loc[:, data.columns != output_label].sample(frac=1)
-    y = data.loc[:, [output_label]].sample(frac=1)
+    shuffled_indices = default_rng().permutation(data.shape[0])
+    x = (data.loc[:, data.columns != output_label])[shuffled_indices]
+    y = (data.loc[:, [output_label]])[shuffled_indices]
 
     split_idx = int(0.8 * len(x))
     x_train, x_test = x[:split_idx], x[split_idx:]
@@ -295,7 +314,7 @@ def RegressorHyperParameterSearch():
                         print(f"Params resulted in new best score: {score}")
                         best_score = score
                         params["learning_rate"] = lr
-                except:
+                except Exception:
                     print("failed")
 
     print(f"Best learning rate: {params['learning_rate']}")
@@ -308,7 +327,6 @@ def RegressorHyperParameterSearch():
 
 
 def example_main():
-    # RegressorHyperParameterSearch()
     output_label = "median_house_value"
 
     # Use pandas to read CSV data as it contains various object types
@@ -338,4 +356,5 @@ def example_main():
 
 
 if __name__ == "__main__":
+    # RegressorHyperParameterSearch()
     example_main()
