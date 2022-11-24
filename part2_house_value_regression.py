@@ -10,7 +10,7 @@ from numpy.random import default_rng
 
 class Regressor:
 
-    def __init__(self, x, lr=0.05, nb_epoch=250, neurons_per_hidden_layer=[15, 30, 20, 15], batch_size=32):
+    def __init__(self, x, lr=0.05, nb_epoch=250, neurons_per_hidden_layer=[32], batch_size=32):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -224,6 +224,8 @@ class Regressor:
         predicted_labels = self.predict(X_tensor)  # list(map(lambda t: self.predict(t).item(), X_tensor))
         true_labels = y.to_numpy()
 
+        if np.isnan(predicted_labels).any():
+            return float('inf')
         return metrics.mean_squared_error(true_labels, predicted_labels, squared=False)
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -284,12 +286,12 @@ def RegressorHyperParameterSearch():
 
     best_error = float('inf')
     for lr_scaled in range(2, 51):  # 0.01 -> 0.015 -> ... -> 0.25 (49 iterations)
-        for batch_power in range(0, 8):  # 1 -> 2 -> 4 -> ... -> 128 (8 iterations)
+        for batch_power in range(8):  # 1 -> 2 -> 4 -> ... -> 128 (8 iterations)
             for hn_scaled in range(1, 11):  # 8 -> 16 -> ... -> 80 (10 iterations)
                 learning_rate = float(lr_scaled) / 200
                 batch_size = 2 ** batch_power
                 hidden_neurons = hn_scaled * 8
-                reg = Regressor(x_train, lr=learning_rate, nb_epoch=100, neurons_per_hidden_layer=[hidden_neurons])
+                reg = Regressor(x_train, lr=learning_rate, nb_epoch=20, neurons_per_hidden_layer=[hidden_neurons])
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
                 if error < best_error:
@@ -343,5 +345,5 @@ def example_main(params):
 
 
 if __name__ == "__main__":
-    params = RegressorHyperParameterSearch()
-    example_main(params)
+    parameters = RegressorHyperParameterSearch()
+    example_main(parameters)
