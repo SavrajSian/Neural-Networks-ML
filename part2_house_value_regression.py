@@ -310,7 +310,7 @@ def RegressorHyperParameterSearch():
     #######################################################################
 
 
-def example_main():
+def example_main(params):
     output_label = "median_house_value"
 
     # Use pandas to read CSV data as it contains various object types
@@ -327,7 +327,11 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
     print("Creating regressor")
-    regressor = Regressor(x_train)
+    regressor = Regressor(x_train,
+                          lr=params["learning_rate"],
+                          neurons_per_hidden_layer=[params["hidden_neurons"]],
+                          batch_size=params["batch_size"]
+                          )
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
@@ -339,5 +343,5 @@ def example_main():
 
 
 if __name__ == "__main__":
-    # params = RegressorHyperParameterSearch()
-    example_main()
+    params = RegressorHyperParameterSearch()
+    example_main(params)
