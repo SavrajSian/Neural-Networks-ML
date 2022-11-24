@@ -5,12 +5,11 @@ import numpy as np
 import pandas as pd
 from sklearn import preprocessing, metrics
 from sklearn.preprocessing import StandardScaler
-from numpy.random import default_rng
 
 
 class Regressor:
 
-    def __init__(self, x, lr=0.05, nb_epoch=250, neurons_per_hidden_layer=[32], batch_size=32):
+    def __init__(self, x, lr=0.02, nb_epoch=250, neurons_per_hidden_layer=[32], batch_size=32):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -312,7 +311,7 @@ def RegressorHyperParameterSearch():
     #######################################################################
 
 
-def example_main(params):
+def example_main():
     output_label = "median_house_value"
 
     # Use pandas to read CSV data as it contains various object types
@@ -327,6 +326,34 @@ def example_main(params):
     # Training
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
+    # to make sure the model isn't overfitting
+    print("Creating regressor")
+    regressor = Regressor(x_train)
+    print("Fitting data")
+    regressor.fit(x_train, y_train)
+    # print("Save to file")
+    # save_regressor(regressor)
+
+    # Error
+    error = regressor.score(x_train, y_train)
+    print("\nRegressor error: {}\n".format(error))
+
+
+def hyperparameter_main(params):
+    output_label = "median_house_value"
+
+    # Use pandas to read CSV data as it contains various object types
+    # Feel free to use another CSV reader tool
+    # But remember that LabTS tests take Pandas DataFrame as inputs
+    data = pd.read_csv("housing.csv")
+
+    # Splitting input and output
+    x_train = data.loc[:, data.columns != output_label]
+    y_train = data.loc[:, [output_label]]
+
+    # Training
+    # This example trains on the whole available dataset.
+    # You probably want to separate some held-out data
     # to make sure the model isn't overfitting
     print("Creating regressor")
     regressor = Regressor(x_train,
@@ -345,5 +372,6 @@ def example_main(params):
 
 
 if __name__ == "__main__":
-    parameters = RegressorHyperParameterSearch()
-    example_main(parameters)
+    # parameters = RegressorHyperParameterSearch()
+    # hyperparameter_main(parameters)
+    example_main()
