@@ -1,3 +1,4 @@
+import math
 import torch
 from torch import nn
 import pickle
@@ -283,6 +284,8 @@ def RegressorHyperParameterSearch():
     x_train, x_test = x[:split_idx], x[split_idx:]
     y_train, y_test = y[:split_idx], y[split_idx:]
 
+    models = []
+
     best_error = float('inf')
     for lr_scaled in range(2, 51):  # 0.01 -> 0.015 -> ... -> 0.25 (49 iterations)
         for batch_power in range(8):  # 1 -> 2 -> 4 -> ... -> 128 (8 iterations)
@@ -293,6 +296,9 @@ def RegressorHyperParameterSearch():
                 reg = Regressor(x_train, lr=learning_rate, nb_epoch=20, neurons_per_hidden_layer=[hidden_neurons])
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
+                if math.isinf(error):
+                    continue
+                models.append([learning_rate, batch_size, hidden_neurons, error])
                 if error < best_error:
                     print(f"\nNew best params: {learning_rate}, {batch_size}, {hidden_neurons}")
                     print(f"New best score: {error}")
@@ -305,6 +311,11 @@ def RegressorHyperParameterSearch():
     print(f"Best batch size: {params['batch_size']}")
     print(f"Best hidden neurons: {params['hidden_neurons']}")
     print(f"Best error: {best_error}")
+
+    df = pd.DataFrame(models, columns=['Learning Rate', 'Batch Size', '# Hidden Neurons', 'RMSE'])
+    df.to_csv('models.csv', index=False)
+    print("CSV successfully created.")
+
     return params  # Return the chosen hyper-parameters
     #######################################################################
     #                       ** END OF YOUR CODE **
@@ -372,6 +383,6 @@ def hyperparameter_main(params):
 
 
 if __name__ == "__main__":
-    # parameters = RegressorHyperParameterSearch()
-    # hyperparameter_main(parameters)
-    example_main()
+    parameters = RegressorHyperParameterSearch()
+    hyperparameter_main(parameters)
+    # example_main()
