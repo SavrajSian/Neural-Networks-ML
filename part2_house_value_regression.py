@@ -293,8 +293,8 @@ def RegressorHyperParameterSearch():
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
                 if error < best_error:
-                    print(f"\nParams resulted in new best score: {error}")
-                    print(f"These params were: {learning_rate}, {batch_size}, {hidden_neurons}")
+                    print(f"\nNew best params: {learning_rate}, {batch_size}, {hidden_neurons}")
+                    print(f"New best score: {error}")
                     best_error = error
                     params["learning_rate"] = learning_rate
                     params["batch_size"] = batch_size
