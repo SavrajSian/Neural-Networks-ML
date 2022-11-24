@@ -8,6 +8,7 @@ from sklearn import preprocessing, metrics
 from sklearn.preprocessing import StandardScaler
 
 
+
 class Regressor:
 
     def __init__(self, x, lr=0.02, nb_epoch=250, neurons_per_hidden_layer=[32], batch_size=32):
@@ -226,6 +227,10 @@ class Regressor:
 
         if np.isnan(predicted_labels).any():
             return float('inf')
+
+        global r2_score
+        r2_score = metrics.r2_score(true_labels, predicted_labels)
+        print("r2", r2_score)
         return metrics.mean_squared_error(true_labels, predicted_labels, squared=False)
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -296,10 +301,11 @@ def RegressorHyperParameterSearch():
                 reg = Regressor(x_train, lr=learning_rate, nb_epoch=20, neurons_per_hidden_layer=[hidden_neurons])
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
+                r2 = r2_score #this is a global variable
                 if math.isinf(error):
                     print("inf case")
                     continue
-                models.append([learning_rate, batch_size, hidden_neurons, error])
+                models.append([learning_rate, batch_size, hidden_neurons, error, r2])
                 if error < best_error:
                     print(f"\nNew best params: {learning_rate}, {batch_size}, {hidden_neurons}")
                     print(f"New best score: {error}")
@@ -313,7 +319,7 @@ def RegressorHyperParameterSearch():
     print(f"Best hidden neurons: {params['hidden_neurons']}")
     print(f"Best error: {best_error}")
 
-    df = pd.DataFrame(models, columns=['Learning Rate', 'Batch Size', '# Hidden Neurons', 'RMSE'])
+    df = pd.DataFrame(models, columns=['Learning Rate', 'Batch Size', '# Hidden Neurons', 'RMSE', 'R2'])
     df.to_csv('models.csv', index=False)
     print("CSV successfully created.")
 
