@@ -287,16 +287,17 @@ def RegressorHyperParameterSearch():
     models = []
 
     best_error = float('inf')
-    for lr_scaled in range(2, 51):  # 0.01 -> 0.015 -> ... -> 0.25 (49 iterations)
+    for lr_scaled in range(1, 51):  # 0.002 -> 0.004 -> ... -> 0.1 (50 iterations)
         for batch_power in range(8):  # 1 -> 2 -> 4 -> ... -> 128 (8 iterations)
             for hn_scaled in range(1, 11):  # 8 -> 16 -> ... -> 80 (10 iterations)
-                learning_rate = float(lr_scaled) / 200
+                learning_rate = float(lr_scaled) / 500
                 batch_size = 2 ** batch_power
                 hidden_neurons = hn_scaled * 8
                 reg = Regressor(x_train, lr=learning_rate, nb_epoch=20, neurons_per_hidden_layer=[hidden_neurons])
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
                 if math.isinf(error):
+                    print("inf case")
                     continue
                 models.append([learning_rate, batch_size, hidden_neurons, error])
                 if error < best_error:
