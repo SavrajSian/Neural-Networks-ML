@@ -54,7 +54,7 @@ class Regressor:
         #######################################################################
 
     # Converts numpy array to torch tensor
-    def to_tensor(self, x):
+    def numpy_to_tensor(self, x):
         return torch.from_numpy(x).float()
 
     def _preprocessor(self, x, y=None, training=False):
@@ -143,8 +143,8 @@ class Regressor:
 
         for i in range(self.nb_epoch):
             for j in range(0, len_X, self.batch_size):
-                x_tensor = self.to_tensor(X[j: min(len_X, j + self.batch_size)])
-                y_tensor = self.to_tensor(Y[j: min(len_X, j + self.batch_size)])
+                x_tensor = self.numpy_to_tensor(X[j: min(len_X, j + self.batch_size)])
+                y_tensor = self.numpy_to_tensor(Y[j: min(len_X, j + self.batch_size)])
 
                 # Forward pass
                 predictions = self.model(x_tensor)
@@ -182,9 +182,9 @@ class Regressor:
         #######################################################################
         if isinstance(x, pd.DataFrame):
             x_pre, _ = self._preprocessor(x, training=False)
-            X = self.to_tensor(x_pre)
+            X = self.numpy_to_tensor(x_pre)
         elif isinstance(x, np.ndarray):
-            X = self.to_tensor(x)
+            X = self.numpy_to_tensor(x)
         elif isinstance(x, torch.Tensor):
             X = x
         else:
@@ -219,7 +219,7 @@ class Regressor:
         self.model.eval()
 
         X, _ = self._preprocessor(x, y=y, training=False)  # Do not forget
-        X_tensor = self.to_tensor(X)
+        X_tensor = self.numpy_to_tensor(X)
 
         predicted_labels = self.predict(X_tensor)  # list(map(lambda t: self.predict(t).item(), X_tensor))
         true_labels = y.to_numpy()
@@ -268,10 +268,9 @@ def RegressorHyperParameterSearch():
     #######################################################################
     #                       ** START OF YOUR CODE **
     #######################################################################
+    # Params being tuned: learning_rate, batch_size, number of neurons in hidden layer
+    params = {"learning_rate": 0.0, "batch_size": 0, "hidden_neurons": 0}
 
-    # TODO: Params to tune: learning_rate, batch_size, number of neurons in hidden layer
-
-    params = {"learning_rate": 0.01}
     data = pd.read_csv("housing.csv")
     output_label = "median_house_value"
 
@@ -283,27 +282,29 @@ def RegressorHyperParameterSearch():
     x_train, x_test = x[:split_idx], x[split_idx:]
     y_train, y_test = y[:split_idx], y[split_idx:]
 
-    best_score = float('inf')
-    for learning_rate in range(10, 5000, 100):
-        for batch_size in range(8, 128, 8):
-            for layer in range(6, 124, 6):
-                lr = learning_rate / 10000
-                print(f"Params set to: {lr}, {batch_size}, {layer}")
-                reg = Regressor(x_train, lr=lr, nb_epoch=100, neurons_per_hidden_layer=[12, 24])
+    best_error = float('inf')
+    for lr_scaled in range(2, 51):  # 0.01 -> 0.015 -> ... -> 0.25 (49 iterations)
+        for batch_power in range(0, 8):  # 1 -> 2 -> 4 -> ... -> 128 (8 iterations)
+            for hn_scaled in range(1, 11):  # 8 -> 16 -> ... -> 80 (10 iterations)
+                learning_rate = float(lr_scaled) / 200
+                batch_size = 2 ** batch_power
+                hidden_neurons = hn_scaled * 8
+                reg = Regressor(x_train, lr=learning_rate, nb_epoch=100, neurons_per_hidden_layer=[hidden_neurons])
                 reg.fit(x_train, y_train)
-                try:
-                    score = reg.score(x_test, y_test)
-                    if score < best_score:
-                        print(f"Params resulted in new best score: {score}")
-                        best_score = score
-                        params["learning_rate"] = lr
-                except Exception:
-                    print("failed")
+                error = reg.score(x_test, y_test)
+                if error < best_error:
+                    print(f"\nParams resulted in new best score: {error}")
+                    print(f"These params were: {learning_rate}, {batch_size}, {hidden_neurons}")
+                    best_error = error
+                    params["learning_rate"] = learning_rate
+                    params["batch_size"] = batch_size
+                    params["hidden_neurons"] = hidden_neurons
 
-    print(f"Best learning rate: {params['learning_rate']}")
-    print(f"Best error: {best_score}")
+    print(f"\nBest learning rate: {params['learning_rate']}")
+    print(f"Best batch size: {params['batch_size']}")
+    print(f"Best hidden neurons: {params['hidden_neurons']}")
+    print(f"Best error: {best_error}")
     return params  # Return the chosen hyper-parameters
-
     #######################################################################
     #                       ** END OF YOUR CODE **
     #######################################################################
