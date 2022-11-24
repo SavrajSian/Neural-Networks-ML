@@ -271,12 +271,12 @@ def RegressorHyperParameterSearch():
     # Params being tuned: learning_rate, batch_size, number of neurons in hidden layer
     params = {"learning_rate": 0.0, "batch_size": 0, "hidden_neurons": 0}
 
-    data = pd.read_csv("housing.csv")
     output_label = "median_house_value"
+    data = pd.read_csv("housing.csv")
+    data_shuffled = data.sample(frac=1)
 
-    shuffled_indices = default_rng().permutation(data.shape[0])
-    x = (data.loc[:, data.columns != output_label])[shuffled_indices]
-    y = (data.loc[:, [output_label]])[shuffled_indices]
+    x = data_shuffled.loc[:, data_shuffled.columns != output_label]
+    y = data_shuffled.loc[:, [output_label]]
 
     split_idx = int(0.8 * len(x))
     x_train, x_test = x[:split_idx], x[split_idx:]
