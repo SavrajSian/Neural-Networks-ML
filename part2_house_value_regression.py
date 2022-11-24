@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 
 class Regressor:
 
-    def __init__(self, x, lr=0.02, nb_epoch=250, neurons_per_hidden_layer=[32], batch_size=32):
+    def __init__(self, x, lr=0.014, nb_epoch=250, neurons_per_hidden_layer=[64], batch_size=16):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -290,13 +290,14 @@ def RegressorHyperParameterSearch():
     models = []
 
     best_error = float('inf')
-    for lr_scaled in range(1, 51):  # 0.002 -> 0.004 -> ... -> 0.1 (50 iterations)
-        for batch_power in range(8):  # 1 -> 2 -> 4 -> ... -> 128 (8 iterations)
-            for hn_scaled in range(1, 11):  # 8 -> 16 -> ... -> 80 (10 iterations)
+    for lr_scaled in range(1, 51):  # 0.002 -> 0.004 -> ... -> 0.1 (50 values)
+        for batch_power in range(3, 8):  # 8 -> 16 -> 32 -> 64 -> 128 (5 values)
+            for hn_scaled in range(1, 11):  # 8 -> 16 -> ... -> 80 (10 values)
                 learning_rate = float(lr_scaled) / 500
                 batch_size = 2 ** batch_power
                 hidden_neurons = hn_scaled * 8
-                reg = Regressor(x_train, lr=learning_rate, nb_epoch=20, neurons_per_hidden_layer=[hidden_neurons])
+                reg = Regressor(x_train, lr=learning_rate, nb_epoch=10,
+                                neurons_per_hidden_layer=[hidden_neurons], batch_size=batch_size)
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
                 if math.isinf(error):
@@ -346,8 +347,8 @@ def example_main():
     regressor = Regressor(x_train)
     print("Fitting data")
     regressor.fit(x_train, y_train)
-    # print("Save to file")
-    # save_regressor(regressor)
+    print("Save to file")
+    save_regressor(regressor)
 
     # Error
     error = regressor.score(x_train, y_train)
@@ -387,6 +388,6 @@ def hyperparameter_main(params):
 
 
 if __name__ == "__main__":
-    parameters = RegressorHyperParameterSearch()
-    hyperparameter_main(parameters)
-    # example_main()
+    # parameters = RegressorHyperParameterSearch()
+    # hyperparameter_main(parameters)
+    example_main()
