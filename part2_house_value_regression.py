@@ -222,7 +222,7 @@ class Regressor:
         X, _ = self._preprocessor(x, y=y, training=False)  # Do not forget
         X_tensor = self.numpy_to_tensor(X)
 
-        predicted_labels = self.predict(X_tensor)  # list(map(lambda t: self.predict(t).item(), X_tensor))
+        predicted_labels = self.predict(X_tensor)
         true_labels = y.to_numpy()
 
         if np.isnan(predicted_labels).any():
@@ -301,12 +301,11 @@ def RegressorHyperParameterSearch():
                 reg.fit(x_train, y_train)
                 error = reg.score(x_test, y_test)
                 if math.isinf(error):
-                    print("inf case")
                     continue
                 models.append([learning_rate, batch_size, hidden_neurons, error, reg.r2_score])
                 if error < best_error:
                     print(f"\nNew best params: {learning_rate}, {batch_size}, {hidden_neurons}")
-                    print(f"New best score: {error}")
+                    print(f"New best RMSE: {error}")
                     best_error = error
                     params["learning_rate"] = learning_rate
                     params["batch_size"] = batch_size
