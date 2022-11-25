@@ -138,14 +138,19 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        X, Y = self._preprocessor(x, y=y, training=True)  # Do not forget
-        len_X = X.shape[0]
-        self.model.train(True)
 
+        split_idx = int(0.8 * len(x))
+        x_train, x_test = x[:split_idx], x[split_idx:]
+        y_train, y_test = y[:split_idx], y[split_idx:]
+
+        X_train, Y_train = self._preprocessor(x_train, y=y_train, training=True)  # Do not forget
+        len_X = X_train.shape[0]
+        self.model.train(True)
+        previous_scores = [float('inf') for _ in range(10)]
         for i in range(self.nb_epoch):
             for j in range(0, len_X, self.batch_size):
-                x_tensor = self.numpy_to_tensor(X[j: min(len_X, j + self.batch_size)])
-                y_tensor = self.numpy_to_tensor(Y[j: min(len_X, j + self.batch_size)])
+                x_tensor = self.numpy_to_tensor(X_train[j: min(len_X, j + self.batch_size)])
+                y_tensor = self.numpy_to_tensor(Y_train[j: min(len_X, j + self.batch_size)])
 
                 # Forward pass
                 predictions = self.model(x_tensor)
@@ -159,6 +164,14 @@ class Regressor:
 
                 # Gradient descent
                 self.optimizer.step()
+
+            # Early dropout
+            new_score = self.score(x_test, y_test)
+            if new_score > max(previous_scores):
+                break
+            else:
+                previous_scores.pop(0)
+                previous_scores.append(new_score)
 
         return self
         #######################################################################
@@ -379,7 +392,7 @@ def hyperparameter_main(params):
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
-    save_regressor(regressor)
+    # save_regressor(regressor)
 
     # Error
     error = regressor.score(x_train, y_train)
