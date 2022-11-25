@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 
 class Regressor:
 
-    def __init__(self, x, lr=0.014, nb_epoch=250, neurons_per_hidden_layer=[64], batch_size=16):
+    def __init__(self, x, lr=0.014, nb_epoch=250, neurons_per_hidden_layer=[56, 64], batch_size=16):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -30,6 +30,7 @@ class Regressor:
         self.missing_values = None
         self.one_hot_cols = None
         self.r2_score = 0
+        self.early_stopping_constant = 10
 
         X, _ = self._preprocessor(x, training=True)
 
@@ -138,15 +139,16 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         split_idx = int(0.8 * len(x))
         x_train, x_test = x[:split_idx], x[split_idx:]
         y_train, y_test = y[:split_idx], y[split_idx:]
 
         X_train, Y_train = self._preprocessor(x_train, y=y_train, training=True)  # Do not forget
         len_X = X_train.shape[0]
+
         self.model.train(True)
-        previous_scores = [float('inf') for _ in range(10)]
+        previous_scores = [float('inf') for _ in range(self.early_stopping_constant)]
+
         for i in range(self.nb_epoch):
             for j in range(0, len_X, self.batch_size):
                 x_tensor = self.numpy_to_tensor(X_train[j: min(len_X, j + self.batch_size)])
@@ -165,7 +167,7 @@ class Regressor:
                 # Gradient descent
                 self.optimizer.step()
 
-            # Early dropout
+            # Early stopping
             new_score = self.score(x_test, y_test)
             if new_score > max(previous_scores):
                 break
@@ -392,7 +394,7 @@ def hyperparameter_main(params):
     print("Fitting data")
     regressor.fit(x_train, y_train)
     print("Save to file")
-    # save_regressor(regressor)
+    save_regressor(regressor)
 
     # Error
     error = regressor.score(x_train, y_train)
