@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 
 class Regressor:
 
-    def __init__(self, x, lr=0.014, nb_epoch=250, neurons_per_hidden_layer=[56, 64], batch_size=16):
+    def __init__(self, x, lr=0.006, nb_epoch=250, neurons_per_hidden_layer=[56, 64], batch_size=16):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
