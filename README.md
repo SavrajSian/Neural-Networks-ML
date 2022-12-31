@@ -1,6 +1,6 @@
 There were two aspects to this project; to create a neural network mini library and create and train a neural network for regression.
 
-### The first of these two tasks required us to implement functions for the following: 
+### The first (mini-library) of these two tasks required us to implement functions for the following: 
 - Linear layers
     - Performs the XW+B transformation and relavent gradient calculations for backpropagation
 - Activation functions
