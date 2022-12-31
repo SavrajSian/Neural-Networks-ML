@@ -26,7 +26,7 @@ The following functions were created:
 - Hyperparameter tuning
     - The learning rate, batch size and number of neurons in a hidden layer were tuned over 10 epochs using RMSE as the metric. 
     
-The findings, analysis and justification of our choices can be found in our report.
+The findings, analysis and justification of our choices can be found in our [report](Neural_Networks_Report.pdf).
 
 The group worked on this project using PyCharm's code-with-me plugin, allowing us to simultaneously code on the same file using a member of the group's IDE as the host.
 
