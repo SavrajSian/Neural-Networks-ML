@@ -13,7 +13,7 @@ There were two aspects to this project; to create a neural network mini library 
 - Trainer for the network
     - Handles data shuffling and performs mini-batched gradient descent on training data and computes loss on validation data.
     
-### The second task was to create an train a neural network to predict house prices based on the given data:
+### The second task was to create and train a neural network to predict house prices based on the given data:
 This was achieved using Pytorch, Numpy, Scikit-learn and Pandas. The report for this has been included in this repository.
 The following functions were created:
 - Preprocessing
